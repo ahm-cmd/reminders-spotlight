@@ -1,115 +1,39 @@
 # Reminders Spotlight
 
-A personal fork of [reminders-menubar](https://github.com/DamascenoRafael/reminders-menubar) by Rafael Damasceno, reworked into a Spotlight-style quick-entry app for Apple Reminders:
+A Spotlight-style quick-entry app for Apple Reminders on macOS.
 
-- A centered, Spotlight-style panel on **⌥Space** with natural-language entry — dates, lists, priorities, and tags are parsed as you type.
-- User-defined **`@` shortcuts** that route a reminder to a specific list (Settings → Shortcuts), e.g. `@p` → Personal.
-- **Move the mouse** to browse all your reminders; **start typing** to focus on writing the new one.
-- A menu-bar dropdown for choosing which lists to show, settings, and quit.
+Press a global shortcut (default **⌥Space**) to drop a centered, Spotlight-like bar onto the screen, type a reminder in plain language, and hit Enter — it parses the date, list, priority, and tags as you type and saves straight to Apple Reminders.
 
-**Build:** this uses [XcodeGen](https://github.com/yonaskolb/XcodeGen). Run `xcodegen generate`, then open `RemindersSpotlight.xcodeproj` — or run `./build_install.sh` to build, sign, and install to `/Applications`.
-
-This fork remains licensed under the **GNU GPLv3** (see [LICENSE](LICENSE)); all original credit goes to Rafael Damasceno. The original project's README follows below.
-
----
-
-<div align="center">
-  <img
-    src="docs/images/reminders-icon.png"
-    alt="Reminders MenuBar"
-  >
-  <h1>
-    Reminders MenuBar
-  </h1>
-  <p>
-    Simple macOS menu bar app to view and interact with reminders.
-  </p>
-  <p>
-    <a href="#features">Features</a> •
-    <a href="#installation">Installation</a> •
-    <a href="#permission-request">Permission Request</a> •
-    <a href="#contributing">Contributing</a> •
-    <a href="#languages">Languages</a> •
-    <a href="#license">License</a>
-  </p>
-</div>
-
-<div align="center">
-  <img
-    max-width="400"
-    width="45%"
-    src="docs/images/reminder-menubar-light.png"
-    alt="Reminders MenuBar in light mode"
-  >
-  <img
-    max-width="400"
-    width="45%"
-    src="docs/images/reminder-menubar-dark.png"
-    alt="Reminders MenuBar in dark mode"
-  >
-</div>
+<p align="center">
+  <img src="docs/screenshot.png" alt="Reminders Spotlight" width="620">
+</p>
 
 ## Features
 
-* All interactions through the macOS menu bar
-* Keep everything in sync with Apple Reminders
-* Create new reminders using natural language for due dates, lists, and tags
-* Mark as completed or edit due dates, priorities, recurrences, lists, tags, and more
-* View upcoming reminders with a configurable time interval
-* Search across all your reminders
-* Filter reminders through lists and tags
-* Customize the menu bar with icon, counter, or next upcoming reminder
-* Toggle the app with a global keyboard shortcut
+- **Spotlight-style entry** — a centered floating panel on ⌥Space, with a pop-in animation.
+- **Natural language** — "Call mom tomorrow 9am !!" sets the due date, time, and priority automatically; tags are recognized too.
+- **`@` list shortcuts** — define your own in *Settings → Shortcuts* (e.g. `@p` → Personal). Typing the shortcut routes the reminder to that list and disappears from the text.
+- **Move to browse, type to write** — nudge the mouse and the panel expands to show all your reminders; start typing and it collapses back so you can focus on the new one.
+- **Menu-bar dropdown** — toggle which lists are shown, open settings, or quit.
+- **Quick checkmark** confirmation when a reminder is saved.
 
-<div align="center">
-  <img
-    src="docs/images/reminders-menubar-demo.gif"
-    alt="Reminders MenuBar demo"
-  >
-</div>
+## Building
 
-## Installation
+This project is generated with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
-*Reminders MenuBar requires macOS Big Sur 11 or later.*
-
-### Homebrew
-
-Reminders MenuBar can be installed using [Homebrew](https://brew.sh).
-
-```bash
-brew install --cask reminders-menubar
+```sh
+xcodegen generate
+open RemindersSpotlight.xcodeproj
 ```
 
-### Direct Download
+Or build, sign, and install to `/Applications` in one step:
 
-Direct downloads are available on the [releases page](https://github.com/DamascenoRafael/reminders-menubar/releases):
+```sh
+./build_install.sh
+```
 
-* Disk image (`.dmg`): double-click to open, then drag the app to *Applications*
-* Zip archive (`.zip`): extract and drag the app to *Applications*
+(The script auto-detects your "Apple Development" signing identity; override with `RMB_SIGN_IDENTITY` if needed.)
 
-## Permission Request
+## Credits & license
 
-Reminders MenuBar uses [EKEventStore](https://developer.apple.com/documentation/eventkit/ekeventstore) to access reminders on macOS (which are available in Apple Reminders and can be synced through iCloud). On first use, the app should request permission to access reminders as shown in the image below. Also, in *System Settings > Privacy & Security > Reminders* it is possible to manage this permission. [Click here if you are using *OpenCore Legacy Patcher*](docs/fix-for-opencore-legacy-patcher.md).
-
-<div>
-  <img
-    width="250"
-    src="docs/images/reminders-permission.png"
-    alt="macOS window asking permission for Reminders MenuBar to access reminders"
-  >
-</div>
-
-## Contributing
-
-Feel free to share, open issues and contribute to this project! :heart:
-
-## Languages
-
-🇺🇸 English • 🇧🇷 Brazilian Portuguese • 🇨🇳 Chinese (Simplified and Traditional) • 🇨🇿 Czech • 🇳🇱 Dutch • 🇵🇭 Filipino • 🇫🇷 French • 🇩🇪 German • 🇮🇩 Indonesian • 🇮🇹 Italian • 🇯🇵 Japanese • 🇰🇷 Korean • 🇵🇱 Polish • 🇷🇺 Russian • 🇸🇰 Slovak • 🇲🇽 Spanish (Latin America) • 🇹🇷 Turkish • 🇺🇦 Ukrainian • 🇻🇳 Vietnamese
-
-[▶︎ Click here to learn how to add new languages :globe_with_meridians:](docs/adding-new-languages.md)
-
-## License
-
-This project is licensed under the terms of the GNU General Public License v3.0.  
-See [LICENSE](LICENSE) for details.
+Reminders Spotlight is a fork of [**reminders-menubar**](https://github.com/DamascenoRafael/reminders-menubar) by Rafael Damasceno, reworked into a Spotlight-style quick-entry tool. Like the original, it is licensed under the **GNU General Public License v3** — see [LICENSE](LICENSE).

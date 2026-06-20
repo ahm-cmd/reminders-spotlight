@@ -95,3 +95,6 @@ iOSInjectionProject/
 # Local build output from build_install.sh
 .build-new/
 .build-rel/
+
+# stray backups
+*.bak
