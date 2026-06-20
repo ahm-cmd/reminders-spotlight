@@ -91,3 +91,7 @@ iOSInjectionProject/
 
 # macOS folder metadata
 .DS_Store
+
+# Local build output from build_install.sh
+.build-new/
+.build-rel/

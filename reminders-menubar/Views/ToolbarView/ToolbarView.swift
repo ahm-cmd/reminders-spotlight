@@ -5,21 +5,10 @@ struct ToolbarView: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            CreateReminderButton()
-                .disabled(remindersData.availableCalendars.isEmpty)
-
             Spacer()
-            
-            SearchRemindersButton()
-                .disabled(remindersData.availableCalendars.isEmpty)
-
-            RecentRemindersButton()
-                .disabled(remindersData.availableCalendars.isEmpty)
 
             FilterReminderListButton()
                 .disabled(remindersData.availableCalendars.isEmpty)
-
-            UpdateAvailableButton()
 
             OpenSettingButton()
         }

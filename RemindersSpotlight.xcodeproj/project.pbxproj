@@ -1,0 +1,935 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		01CBA2860B56C57924702475 /* Image+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BC9E82815A24F934FBD4FFB /* Image+Extensions.swift */; };
+		031A4466C60F7A5217392953 /* ReminderChangePriorityOptionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96632DA796D63261795297C5 /* ReminderChangePriorityOptionMenu.swift */; };
+		03F45B0771442141AEF03DEE /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D49B3FBC284364DBDD3CFE0A /* UserPreferences.swift */; };
+		047F1C596A933C51E718761E /* RmbSortingOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77005B83388BC56B6D3D7CBD /* RmbSortingOrder.swift */; };
+		0569560AF47FEC68C26F00E2 /* RmbColorScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02778853E9E610130E5A93EB /* RmbColorScheme.swift */; };
+		057CAEA13B1EFAC5A3606170 /* ReminderItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C092BFC7E4A9C7F1177058B9 /* ReminderItemView.swift */; };
+		05E0E091682C366226B7B506 /* ShowMoreRemindersButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00632236BB4544FB7B90CB0 /* ShowMoreRemindersButton.swift */; };
+		0774A02439F6C3464D2E09E5 /* NSTextField+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAD55A09A3A109C44071753 /* NSTextField+Extensions.swift */; };
+		078D2E73C0B436675F42D5B5 /* TagReminderList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6785CA6AAC594DC880F3456C /* TagReminderList.swift */; };
+		07C66F1956EC9068DB4A8B03 /* RmbHighlightedTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC20E2806E91F2A83C87458C /* RmbHighlightedTextField.swift */; };
+		092C2A0AB5AB3877340749D3 /* KeyboardShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0114822A1779BE743A6D217 /* KeyboardShortcutService.swift */; };
+		09DB9267F9FD601659D41F3A /* ToolbarButtonLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEDE612DA71B85FC11010114 /* ToolbarButtonLabel.swift */; };
+		0AF6778469051B63169C307E /* RmbIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09F31F437CF34B2564FEA43A /* RmbIcon.swift */; };
+		13A2BC7F4B0B22C520AEAAED /* NoReminderListsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944C4314D6CB46D2EC80765E /* NoReminderListsView.swift */; };
+		144144571898A19F58530E09 /* remindersLocalized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 356ABFC2DCB3E697D45715ED /* remindersLocalized.swift */; };
+		148AC9D90A78144AE14A0515 /* ArrayReminderItem+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6579C397D348EF79F2FD4A7C /* ArrayReminderItem+Extension.swift */; };
+		1505C45FD5688F503B897719 /* RightClickMenuHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECFC637DDF599E1BF8642E19 /* RightClickMenuHelper.swift */; };
+		1CF39DCEDECBCF9F575762E0 /* ReminderSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9D9B276318C63F143B1109 /* ReminderSettingsTab.swift */; };
+		1E1BFECBD88DBAE6F0D5D38A /* RmbDatePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A78F9EB7CC1073F8571113 /* RmbDatePicker.swift */; };
+		1E6E8E77205469148A9388AC /* RmbMenuBarPreviewTimeAhead.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C7C462335FAB68E2BBDDCA7 /* RmbMenuBarPreviewTimeAhead.swift */; };
+		20B4262E4B1C75B3E377133A /* FilterReminderListButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFD32E8893122FA900194F4 /* FilterReminderListButton.swift */; };
+		213090496DF1E8F6156B2151 /* ConfirmButtonModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18D6BCE6A0951AC2F747B1E /* ConfirmButtonModifier.swift */; };
+		2231F2231853C00C7F5C91B8 /* KeyboardSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF30EB4AC63997B4274300C /* KeyboardSettingsTab.swift */; };
+		258878F2C5D60432A625D827 /* ReminderTagsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F62A7B22ECBB761A670DE7B /* ReminderTagsView.swift */; };
+		2604775A9B3264B05EB20CD5 /* ReminderDateTimeEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1ED7DF584DCB6732ECCF1E5 /* ReminderDateTimeEditView.swift */; };
+		26D463D3EC99EC102FC604F0 /* FilterPanelContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B417FBBEBB4E3BA5B981415B /* FilterPanelContentView.swift */; };
+		283CEDCDBD1EB12343FC3FB9 /* ReminderListSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DA4B423CE8A8CEA7434CC1 /* ReminderListSection.swift */; };
+		28F8408A1AB1246D903635B4 /* ReminderChangeDueDateOptionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AC744AD2DCDC6E71DB7D42 /* ReminderChangeDueDateOptionMenu.swift */; };
+		29F8DD2217BEDC4C821BC7F5 /* SettingsDivider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96AEF1363B87316B65F3602 /* SettingsDivider.swift */; };
+		2A8458B7349CBE27134CF125 /* CalendarReminderList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC4161B499569FBFD01FD41 /* CalendarReminderList.swift */; };
+		2EF983312814A09EFFCBAA43 /* PopoverResizeHandleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A232CE631EB9872AA7C250 /* PopoverResizeHandleView.swift */; };
+		3096F464080C02162608D0C2 /* RmbColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C07E282015E1E76DFE44E01 /* RmbColor.swift */; };
+		3107EAD5557B325EC940EC8D /* FilterPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D036521ADA73374C3EC00D /* FilterPanelController.swift */; };
+		31A8324DBFFC8096D87F7E52 /* CalendarParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A812A65FA45802B2694C9D8 /* CalendarParser.swift */; };
+		36370D204F69EFC010680246 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A965953B791DB22ADFC092 /* Constants.swift */; };
+		36CBA7A52AD43282C3A35D88 /* NoFilterSelectedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD46CE10990684F1BEB6EFD9 /* NoFilterSelectedView.swift */; };
+		372C5525F4A4232E4EE6DC37 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F84E731D158F86335A2F9E /* MainWindow.swift */; };
+		38F8C15CB5DA3C571D26F3FC /* CalendarTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B11679C1607FB58F20B6237 /* CalendarTitle.swift */; };
+		39EA72BA96AEC3584C881617 /* ReminderCompleteButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072D98547F0B75A201B36367 /* ReminderCompleteButton.swift */; };
+		3A83AAA2ACF1AE7A286DE03B /* PriorityParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB74CAA6A4D08285EFA76BD /* PriorityParser.swift */; };
+		3AE9535BF4ECA90DBED415FC /* CopyProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BBE432BFD6ED8D53ACDA445 /* CopyProperty.swift */; };
+		3D6414B001B1B92427526088 /* ColoredDotTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 353882965B7272C2DE210C84 /* ColoredDotTitle.swift */; };
+		4DFE3518B2F8F92D49D48B7C /* SettingsNoteStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E82A9F359EDAB1580F3BBD /* SettingsNoteStyle.swift */; };
+		4DFECD2751FAE14F9A73AD84 /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E44BA2DC9E1460578B0BD74 /* Color+Extensions.swift */; };
+		505CA301AC5FC8C02DD000FE /* EKRecurrenceRule+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0941AB7906E8E8E7E7CA08C /* EKRecurrenceRule+Extensions.swift */; };
+		5653BA26B3C0D96ABE0A629C /* AboutSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDBF8F3C0F3426EECADE1B76 /* AboutSettingsTab.swift */; };
+		5723F2FF2CCA6210FBD71A63 /* SettingsCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB77748C8600D829AB3AFCCF /* SettingsCoordinator.swift */; };
+		574B32A6CB7139AEA7BF1E9A /* RmbReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036DDB399594255BAB6A89B0 /* RmbReminder.swift */; };
+		5D50B8AF3E8D7739913DC7CF /* PrioritizedReminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81FD068646D383C4EC8C928 /* PrioritizedReminders.swift */; };
+		5F46907DD8CC1DA86A4A3BE0 /* Tag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5515E46D43776012D1CE938B /* Tag.swift */; };
+		6338794B5875D3516F6033EB /* Array+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A5F3E0D17707FA2C55E3C1F /* Array+Extension.swift */; };
+		64E80BC95A39A03433266AF5 /* ReminderEllipsisMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24E9A7D5D7C77243EBD9BC72 /* ReminderEllipsisMenuView.swift */; };
+		67F75674687EDAE895C0BA87 /* ReminderTagsEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804E5EB3032E66B7311FB3C5 /* ReminderTagsEditView.swift */; };
+		680E22E9184BDB67942C47D5 /* CopySettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = D376445203272C51156D8506 /* CopySettingsTab.swift */; };
+		696F39A77020C73398AFEDC7 /* ReminderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA816926B2D25C171037FD0 /* ReminderItem.swift */; };
+		6B3A21EC8E2C71ACF4376979 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3553BCE25734EE585A8A6ABF /* ContentView.swift */; };
+		6D08B1EA7985D8EF69817ABD /* EKReminder+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884811E9C783F55701054258 /* EKReminder+Extensions.swift */; };
+		6ED8CB9CDF6C4D3D9A67840B /* UserDefaults+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E764F5A6E3098C56DE6342AB /* UserDefaults+Extensions.swift */; };
+		6FB2F5363B22458DAC1DB6DC /* ReminderPriorityEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CEC8B10C4F4E251E164DAF3 /* ReminderPriorityEditView.swift */; };
+		7029EBFF6F01856166DFD26F /* MenuBarPreviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D98530CD6E9EC2873FFC9B5 /* MenuBarPreviewService.swift */; };
+		71E96918A31143CE06189DAB /* Localizable.xcstrings.bak in Resources */ = {isa = PBXBuildFile; fileRef = 175DFCC8EA52C33278D1E2FA /* Localizable.xcstrings.bak */; };
+		720CB889D64BAB7F6F005E3D /* SettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E33A47476CC68CA267610D /* SettingsSection.swift */; };
+		764FF5BEAC1B16AB43D61FB4 /* NoReminderItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76A2A05BA7C42350DD006D28 /* NoReminderItemsView.swift */; };
+		771510979F696CDC8A93E85B /* DateParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79767C018194BCF8463E6EBD /* DateParser.swift */; };
+		7B7D5B967DCB5AF78E160FAC /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C09CE1749DBD98067915DDDA /* InfoPlist.xcstrings */; };
+		7F8352631020AF5D75277BB5 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEAC361BDA38117A3D6BEA3 /* String+Extensions.swift */; };
+		7FE51BF2EEAF58C815AAE436 /* SpotlightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AB1CD2A2D7370E5E0FF9BA4 /* SpotlightView.swift */; };
+		815FB0FCFDD2D24274D3AE57 /* ReminderLoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90B695521D7C360F72A99EFC /* ReminderLoadingView.swift */; };
+		84DFC5BF6ED948A0D0556BD5 /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AECF24DAF365F9A878003F /* ToolbarView.swift */; };
+		87C36041CF766C64D1380384 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 421D0BAA3CA67A3842D2607F /* AppCommands.swift */; };
+		88A2874902A3F3958A0A0531 /* RmbSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64908D887B92C5A7877873DF /* RmbSymbol.swift */; };
+		8F939BFEF7E2E71EC5109223 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7316F70B10C5D49AD7588CB9 /* KeyboardShortcuts */; };
+		970EF68905226A9149A74BC6 /* ReminderEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5596AF3075E479515D612926 /* ReminderEditView.swift */; };
+		972186C6F5258693D923917B /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0DEE26871565EFD0E634D246 /* Preview Assets.xcassets */; };
+		9B49104F5846936D624F6DE9 /* RemindersData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E533FFBFEE90D4B4F1C7B7A /* RemindersData.swift */; };
+		9C978BDB58496C1BCE5D4A5B /* URL+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B173C6514160398DCF8596F1 /* URL+Extensions.swift */; };
+		A1EFB3F21382ADAA57324FB7 /* TagParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443821CA3BED681EC2BD4A62 /* TagParser.swift */; };
+		A548BE8023E5325E164F8C6D /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFA60238FC15A6DF310E5DE5 /* Colors.xcassets */; };
+		A8A7503B604F6F88463007C5 /* EKReminderPriority+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B7E320C12A24A05C53321A /* EKReminderPriority+Extensions.swift */; };
+		A97439B1CEC476E6779715FE /* RmbRecurrenceOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61E75DFA0D19398584A50785 /* RmbRecurrenceOption.swift */; };
+		ABEAA256CD7F4C98054FEC31 /* RemoveReminderAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C87A94511CB8DDCFBF568D8 /* RemoveReminderAlert.swift */; };
+		AF336DEA5ACB931CCB429B19 /* SettingsOpenerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AFB72503CFA07DE8B09BC6 /* SettingsOpenerView.swift */; };
+		B0E59F9EF9D7F0C18B3D051F /* RmbBackgroundModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24412B0EAF187BC39207E4BE /* RmbBackgroundModifier.swift */; };
+		B3E1372DFDC16059578912AC /* ReminderRecurrenceEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 295F536D4182824C614FCD23 /* ReminderRecurrenceEditView.swift */; };
+		B4310D46DC287AAD3DA688D2 /* ReminderListEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4CFCE85E25AEFA5E154432 /* ReminderListEditView.swift */; };
+		B5F9AD66DDFE925B85B2DBA0 /* Comparable+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B87F5B574FBBB84926B1AE1 /* Comparable+Extensions.swift */; };
+		B734BF482E7F524BE4881FE7 /* ToolbarButtonModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E04914057A9E19CAD7352 /* ToolbarButtonModifier.swift */; };
+		BB94F7F00B93DD182184CDE9 /* Label+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF596E7AF664325F972B39D /* Label+Extensions.swift */; };
+		BC5BE7DE276ACC819C79F562 /* GeneralSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 806610BDF4FC8FFAE70B9102 /* GeneralSettingsTab.swift */; };
+		BCE05E02EF302DDCDA156265 /* NSTableView+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F930C24276A925D030D413D4 /* NSTableView+Extensions.swift */; };
+		C5321559D2815BA94B0460EF /* UpcomingRemindersContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DB1F829754C0C0EDAC89EAD /* UpcomingRemindersContent.swift */; };
+		C57B596B82BABF8865198EEF /* EKCalendar+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C26D325699FB2060ADF9009 /* EKCalendar+Extensions.swift */; };
+		C700D73CA3D707548DDE570B /* ReminderChangeListOptionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 707CD96B56D965EC09978372 /* ReminderChangeListOptionMenu.swift */; };
+		C75FC10F1EEC825381BA0516 /* OpenSettingButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC01FCF3B4274DC6B738F280 /* OpenSettingButton.swift */; };
+		CDAC9699E20EF05755D9C9AF /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91973B93E9D31521592AC73 /* Date+Extensions.swift */; };
+		D0525DD1D63A4DB90DCCD8E1 /* NSCursor+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1B41238EBCCB88772FFF6C /* NSCursor+Extensions.swift */; };
+		D05BF5652926A1A21C1EBF56 /* ReminderDateDescriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 153971BDEC506B899640A831 /* ReminderDateDescriptionView.swift */; };
+		D06BEFF67BB171F42BB566A3 /* Calendar+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159DB5C5ED367D6476939888 /* Calendar+Extensions.swift */; };
+		D34193F1180EA9CB7E071E31 /* Binding+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCCF6B992A3CAD36225391B /* Binding+Extensions.swift */; };
+		D4134B0EA3E355ECA7D5E0F7 /* CreateReminderButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B879C6F104886B598D7026C /* CreateReminderButton.swift */; };
+		D45871A045C8D021D16B0CE2 /* NSApplication+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A313F556242E6BAAF696998A /* NSApplication+Extensions.swift */; };
+		DB56492C1AE50A8C431F8030 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 23B971ACF93AE416216AA21A /* Localizable.xcstrings */; };
+		DB9FC57999C3B6CE369824BF /* RmbMenuBarCounterType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958914D747C156F4029AEA0A /* RmbMenuBarCounterType.swift */; };
+		DCFDEF8EBB42773C39AE990C /* TagPillModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2493A6761A136D1233C91043 /* TagPillModifier.swift */; };
+		E2509CCE3B270522D6B566A4 /* ReminderCopyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8BF0A213A510FB6959AF9B4 /* ReminderCopyService.swift */; };
+		E4FC445A137C025CEBE84AB4 /* MainPopoverSizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD766EA0B36791507ED209F /* MainPopoverSizing.swift */; };
+		E593178FBB38DBA3FAFD2756 /* CopyShortcutCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDD61218883EEDDE19B60578 /* CopyShortcutCoordinator.swift */; };
+		E67578831EDC70E4CE16FC2D /* ReminderInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3368018C13E5A95F6609D06 /* ReminderInterval.swift */; };
+		E74EFCAD642F83EF49CD601A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9434635239211E5651BCEC62 /* SettingsView.swift */; };
+		E8AF290E82F286EAC4EAA251 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98EF570F5882AAD81AD75A5 /* AppDelegate.swift */; };
+		EF622A1044F8846BCBA0446C /* ReminderExternalLinksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 024F61934CC7E334EA33499C /* ReminderExternalLinksView.swift */; };
+		F4C2A2332522266662A4061D /* RmbKeyCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208B898B6F0D40BB25512C03 /* RmbKeyCode.swift */; };
+		F7DA265619739F2C4F9AE2CE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 17185E281E74B13A7EB0A3D1 /* Assets.xcassets */; };
+		F7F1BD9231DD18D1BA2DA72C /* RemindersService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB0BC3F1F13743A0E62B422 /* RemindersService.swift */; };
+		FADBAC9D957F11E2FB85FC4D /* EnvironmentValues+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247F964CD66CDCB2EAA4F25C /* EnvironmentValues+Extensions.swift */; };
+		FFE56631D9A09DF8CEC86A6E /* MenuBarSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DE1B1E696A0A13A84AC4B74 /* MenuBarSettingsTab.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		024F61934CC7E334EA33499C /* ReminderExternalLinksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderExternalLinksView.swift; sourceTree = "<group>"; };
+		02778853E9E610130E5A93EB /* RmbColorScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbColorScheme.swift; sourceTree = "<group>"; };
+		036DDB399594255BAB6A89B0 /* RmbReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbReminder.swift; sourceTree = "<group>"; };
+		072D98547F0B75A201B36367 /* ReminderCompleteButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderCompleteButton.swift; sourceTree = "<group>"; };
+		09F31F437CF34B2564FEA43A /* RmbIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbIcon.swift; sourceTree = "<group>"; };
+		0C07E282015E1E76DFE44E01 /* RmbColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbColor.swift; sourceTree = "<group>"; };
+		0DEE26871565EFD0E634D246 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		10E82A9F359EDAB1580F3BBD /* SettingsNoteStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNoteStyle.swift; sourceTree = "<group>"; };
+		153971BDEC506B899640A831 /* ReminderDateDescriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderDateDescriptionView.swift; sourceTree = "<group>"; };
+		159DB5C5ED367D6476939888 /* Calendar+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Calendar+Extensions.swift"; sourceTree = "<group>"; };
+		15F84E731D158F86335A2F9E /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
+		17185E281E74B13A7EB0A3D1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		175DFCC8EA52C33278D1E2FA /* Localizable.xcstrings.bak */ = {isa = PBXFileReference; path = Localizable.xcstrings.bak; sourceTree = "<group>"; };
+		19A78F9EB7CC1073F8571113 /* RmbDatePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbDatePicker.swift; sourceTree = "<group>"; };
+		1BC9E82815A24F934FBD4FFB /* Image+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Image+Extensions.swift"; sourceTree = "<group>"; };
+		1DB1F829754C0C0EDAC89EAD /* UpcomingRemindersContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingRemindersContent.swift; sourceTree = "<group>"; };
+		208B898B6F0D40BB25512C03 /* RmbKeyCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbKeyCode.swift; sourceTree = "<group>"; };
+		23B971ACF93AE416216AA21A /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		24412B0EAF187BC39207E4BE /* RmbBackgroundModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbBackgroundModifier.swift; sourceTree = "<group>"; };
+		247F964CD66CDCB2EAA4F25C /* EnvironmentValues+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EnvironmentValues+Extensions.swift"; sourceTree = "<group>"; };
+		2493A6761A136D1233C91043 /* TagPillModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagPillModifier.swift; sourceTree = "<group>"; };
+		24E9A7D5D7C77243EBD9BC72 /* ReminderEllipsisMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderEllipsisMenuView.swift; sourceTree = "<group>"; };
+		295F536D4182824C614FCD23 /* ReminderRecurrenceEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderRecurrenceEditView.swift; sourceTree = "<group>"; };
+		2F62A7B22ECBB761A670DE7B /* ReminderTagsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderTagsView.swift; sourceTree = "<group>"; };
+		2FF30EB4AC63997B4274300C /* KeyboardSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardSettingsTab.swift; sourceTree = "<group>"; };
+		353882965B7272C2DE210C84 /* ColoredDotTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColoredDotTitle.swift; sourceTree = "<group>"; };
+		3553BCE25734EE585A8A6ABF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		356ABFC2DCB3E697D45715ED /* remindersLocalized.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = remindersLocalized.swift; sourceTree = "<group>"; };
+		36AECF24DAF365F9A878003F /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
+		3B87F5B574FBBB84926B1AE1 /* Comparable+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Comparable+Extensions.swift"; sourceTree = "<group>"; };
+		3BD766EA0B36791507ED209F /* MainPopoverSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainPopoverSizing.swift; sourceTree = "<group>"; };
+		3C87A94511CB8DDCFBF568D8 /* RemoveReminderAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveReminderAlert.swift; sourceTree = "<group>"; };
+		421D0BAA3CA67A3842D2607F /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
+		443821CA3BED681EC2BD4A62 /* TagParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagParser.swift; sourceTree = "<group>"; };
+		49A232CE631EB9872AA7C250 /* PopoverResizeHandleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverResizeHandleView.swift; sourceTree = "<group>"; };
+		4A5F3E0D17707FA2C55E3C1F /* Array+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extension.swift"; sourceTree = "<group>"; };
+		4F4CFCE85E25AEFA5E154432 /* ReminderListEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListEditView.swift; sourceTree = "<group>"; };
+		4F9D9B276318C63F143B1109 /* ReminderSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSettingsTab.swift; sourceTree = "<group>"; };
+		5515E46D43776012D1CE938B /* Tag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tag.swift; sourceTree = "<group>"; };
+		5596AF3075E479515D612926 /* ReminderEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderEditView.swift; sourceTree = "<group>"; };
+		5A812A65FA45802B2694C9D8 /* CalendarParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarParser.swift; sourceTree = "<group>"; };
+		5D98530CD6E9EC2873FFC9B5 /* MenuBarPreviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPreviewService.swift; sourceTree = "<group>"; };
+		5E1B41238EBCCB88772FFF6C /* NSCursor+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSCursor+Extensions.swift"; sourceTree = "<group>"; };
+		5E44BA2DC9E1460578B0BD74 /* Color+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Extensions.swift"; sourceTree = "<group>"; };
+		5E533FFBFEE90D4B4F1C7B7A /* RemindersData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersData.swift; sourceTree = "<group>"; };
+		61E75DFA0D19398584A50785 /* RmbRecurrenceOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbRecurrenceOption.swift; sourceTree = "<group>"; };
+		64908D887B92C5A7877873DF /* RmbSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbSymbol.swift; sourceTree = "<group>"; };
+		6579C397D348EF79F2FD4A7C /* ArrayReminderItem+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArrayReminderItem+Extension.swift"; sourceTree = "<group>"; };
+		6785CA6AAC594DC880F3456C /* TagReminderList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagReminderList.swift; sourceTree = "<group>"; };
+		697F1919C107CF92816739C0 /* RemindersSpotlight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RemindersSpotlight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6AB1CD2A2D7370E5E0FF9BA4 /* SpotlightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightView.swift; sourceTree = "<group>"; };
+		6AF596E7AF664325F972B39D /* Label+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Label+Extensions.swift"; sourceTree = "<group>"; };
+		6BCCF6B992A3CAD36225391B /* Binding+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Extensions.swift"; sourceTree = "<group>"; };
+		707CD96B56D965EC09978372 /* ReminderChangeListOptionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderChangeListOptionMenu.swift; sourceTree = "<group>"; };
+		75AFB72503CFA07DE8B09BC6 /* SettingsOpenerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsOpenerView.swift; sourceTree = "<group>"; };
+		76A2A05BA7C42350DD006D28 /* NoReminderItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoReminderItemsView.swift; sourceTree = "<group>"; };
+		77005B83388BC56B6D3D7CBD /* RmbSortingOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbSortingOrder.swift; sourceTree = "<group>"; };
+		79767C018194BCF8463E6EBD /* DateParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateParser.swift; sourceTree = "<group>"; };
+		7BBE432BFD6ED8D53ACDA445 /* CopyProperty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyProperty.swift; sourceTree = "<group>"; };
+		804E5EB3032E66B7311FB3C5 /* ReminderTagsEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderTagsEditView.swift; sourceTree = "<group>"; };
+		806610BDF4FC8FFAE70B9102 /* GeneralSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsTab.swift; sourceTree = "<group>"; };
+		884811E9C783F55701054258 /* EKReminder+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKReminder+Extensions.swift"; sourceTree = "<group>"; };
+		89A965953B791DB22ADFC092 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		8B11679C1607FB58F20B6237 /* CalendarTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarTitle.swift; sourceTree = "<group>"; };
+		8C26D325699FB2060ADF9009 /* EKCalendar+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKCalendar+Extensions.swift"; sourceTree = "<group>"; };
+		8C7C462335FAB68E2BBDDCA7 /* RmbMenuBarPreviewTimeAhead.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbMenuBarPreviewTimeAhead.swift; sourceTree = "<group>"; };
+		90B695521D7C360F72A99EFC /* ReminderLoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderLoadingView.swift; sourceTree = "<group>"; };
+		9434635239211E5651BCEC62 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		944C4314D6CB46D2EC80765E /* NoReminderListsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoReminderListsView.swift; sourceTree = "<group>"; };
+		958914D747C156F4029AEA0A /* RmbMenuBarCounterType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbMenuBarCounterType.swift; sourceTree = "<group>"; };
+		96632DA796D63261795297C5 /* ReminderChangePriorityOptionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderChangePriorityOptionMenu.swift; sourceTree = "<group>"; };
+		9B879C6F104886B598D7026C /* CreateReminderButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateReminderButton.swift; sourceTree = "<group>"; };
+		9BC4161B499569FBFD01FD41 /* CalendarReminderList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReminderList.swift; sourceTree = "<group>"; };
+		9BFD32E8893122FA900194F4 /* FilterReminderListButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterReminderListButton.swift; sourceTree = "<group>"; };
+		9CEC8B10C4F4E251E164DAF3 /* ReminderPriorityEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderPriorityEditView.swift; sourceTree = "<group>"; };
+		9DE1B1E696A0A13A84AC4B74 /* MenuBarSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarSettingsTab.swift; sourceTree = "<group>"; };
+		A313F556242E6BAAF696998A /* NSApplication+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSApplication+Extensions.swift"; sourceTree = "<group>"; };
+		A8BF0A213A510FB6959AF9B4 /* ReminderCopyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderCopyService.swift; sourceTree = "<group>"; };
+		AAAD55A09A3A109C44071753 /* NSTextField+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSTextField+Extensions.swift"; sourceTree = "<group>"; };
+		ABB0BC3F1F13743A0E62B422 /* RemindersService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersService.swift; sourceTree = "<group>"; };
+		B173C6514160398DCF8596F1 /* URL+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+Extensions.swift"; sourceTree = "<group>"; };
+		B3B7E320C12A24A05C53321A /* EKReminderPriority+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKReminderPriority+Extensions.swift"; sourceTree = "<group>"; };
+		B417FBBEBB4E3BA5B981415B /* FilterPanelContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterPanelContentView.swift; sourceTree = "<group>"; };
+		B96AEF1363B87316B65F3602 /* SettingsDivider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsDivider.swift; sourceTree = "<group>"; };
+		B98EF570F5882AAD81AD75A5 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		BD46CE10990684F1BEB6EFD9 /* NoFilterSelectedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoFilterSelectedView.swift; sourceTree = "<group>"; };
+		BDBF8F3C0F3426EECADE1B76 /* AboutSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsTab.swift; sourceTree = "<group>"; };
+		BEA816926B2D25C171037FD0 /* ReminderItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderItem.swift; sourceTree = "<group>"; };
+		C00632236BB4544FB7B90CB0 /* ShowMoreRemindersButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowMoreRemindersButton.swift; sourceTree = "<group>"; };
+		C092BFC7E4A9C7F1177058B9 /* ReminderItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderItemView.swift; sourceTree = "<group>"; };
+		C09CE1749DBD98067915DDDA /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		C1D036521ADA73374C3EC00D /* FilterPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterPanelController.swift; sourceTree = "<group>"; };
+		C1ED7DF584DCB6732ECCF1E5 /* ReminderDateTimeEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderDateTimeEditView.swift; sourceTree = "<group>"; };
+		C3368018C13E5A95F6609D06 /* ReminderInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderInterval.swift; sourceTree = "<group>"; };
+		C96E04914057A9E19CAD7352 /* ToolbarButtonModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarButtonModifier.swift; sourceTree = "<group>"; };
+		CEDE612DA71B85FC11010114 /* ToolbarButtonLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarButtonLabel.swift; sourceTree = "<group>"; };
+		D0941AB7906E8E8E7E7CA08C /* EKRecurrenceRule+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKRecurrenceRule+Extensions.swift"; sourceTree = "<group>"; };
+		D376445203272C51156D8506 /* CopySettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySettingsTab.swift; sourceTree = "<group>"; };
+		D49B3FBC284364DBDD3CFE0A /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
+		D5AC744AD2DCDC6E71DB7D42 /* ReminderChangeDueDateOptionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderChangeDueDateOptionMenu.swift; sourceTree = "<group>"; };
+		D81FD068646D383C4EC8C928 /* PrioritizedReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrioritizedReminders.swift; sourceTree = "<group>"; };
+		DB77748C8600D829AB3AFCCF /* SettingsCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCoordinator.swift; sourceTree = "<group>"; };
+		DC20E2806E91F2A83C87458C /* RmbHighlightedTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RmbHighlightedTextField.swift; sourceTree = "<group>"; };
+		DCB74CAA6A4D08285EFA76BD /* PriorityParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriorityParser.swift; sourceTree = "<group>"; };
+		E764F5A6E3098C56DE6342AB /* UserDefaults+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+Extensions.swift"; sourceTree = "<group>"; };
+		E91973B93E9D31521592AC73 /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
+		EC01FCF3B4274DC6B738F280 /* OpenSettingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenSettingButton.swift; sourceTree = "<group>"; };
+		ECFC637DDF599E1BF8642E19 /* RightClickMenuHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RightClickMenuHelper.swift; sourceTree = "<group>"; };
+		EDD61218883EEDDE19B60578 /* CopyShortcutCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyShortcutCoordinator.swift; sourceTree = "<group>"; };
+		EFA60238FC15A6DF310E5DE5 /* Colors.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Colors.xcassets; sourceTree = "<group>"; };
+		F0114822A1779BE743A6D217 /* KeyboardShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutService.swift; sourceTree = "<group>"; };
+		F18D6BCE6A0951AC2F747B1E /* ConfirmButtonModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmButtonModifier.swift; sourceTree = "<group>"; };
+		F2E33A47476CC68CA267610D /* SettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSection.swift; sourceTree = "<group>"; };
+		F6DA4B423CE8A8CEA7434CC1 /* ReminderListSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderListSection.swift; sourceTree = "<group>"; };
+		F930C24276A925D030D413D4 /* NSTableView+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSTableView+Extensions.swift"; sourceTree = "<group>"; };
+		FFEAC361BDA38117A3D6BEA3 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		634E3199546A435F76EA114A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F939BFEF7E2E71EC5109223 /* KeyboardShortcuts in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		211B63FAC3E5C9A556F76C44 = {
+			isa = PBXGroup;
+			children = (
+				7D9A510D2781736D278BC9F0 /* reminders-menubar */,
+				27A9A6B117127F593651BCCF /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		249C8273974C7050BB11CDA4 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				8B11679C1607FB58F20B6237 /* CalendarTitle.swift */,
+				353882965B7272C2DE210C84 /* ColoredDotTitle.swift */,
+				15F84E731D158F86335A2F9E /* MainWindow.swift */,
+				49A232CE631EB9872AA7C250 /* PopoverResizeHandleView.swift */,
+				024F61934CC7E334EA33499C /* ReminderExternalLinksView.swift */,
+				90B695521D7C360F72A99EFC /* ReminderLoadingView.swift */,
+				3C87A94511CB8DDCFBF568D8 /* RemoveReminderAlert.swift */,
+				19A78F9EB7CC1073F8571113 /* RmbDatePicker.swift */,
+				DC20E2806E91F2A83C87458C /* RmbHighlightedTextField.swift */,
+				75AFB72503CFA07DE8B09BC6 /* SettingsOpenerView.swift */,
+				C00632236BB4544FB7B90CB0 /* ShowMoreRemindersButton.swift */,
+				AC11B5A1E127239AE7DA2920 /* Modifiers */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		27A9A6B117127F593651BCCF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				697F1919C107CF92816739C0 /* RemindersSpotlight.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2EDBEF2C12C267E0022575BB /* EmptyStates */ = {
+			isa = PBXGroup;
+			children = (
+				BD46CE10990684F1BEB6EFD9 /* NoFilterSelectedView.swift */,
+				76A2A05BA7C42350DD006D28 /* NoReminderItemsView.swift */,
+				944C4314D6CB46D2EC80765E /* NoReminderListsView.swift */,
+			);
+			path = EmptyStates;
+			sourceTree = "<group>";
+		};
+		3A0A07EB5909348CF6915F5B /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				EDD61218883EEDDE19B60578 /* CopyShortcutCoordinator.swift */,
+				F0114822A1779BE743A6D217 /* KeyboardShortcutService.swift */,
+				5D98530CD6E9EC2873FFC9B5 /* MenuBarPreviewService.swift */,
+				A8BF0A213A510FB6959AF9B4 /* ReminderCopyService.swift */,
+				ABB0BC3F1F13743A0E62B422 /* RemindersService.swift */,
+				ECFC637DDF599E1BF8642E19 /* RightClickMenuHelper.swift */,
+				DB77748C8600D829AB3AFCCF /* SettingsCoordinator.swift */,
+				D49B3FBC284364DBDD3CFE0A /* UserPreferences.swift */,
+				75A06CE63E607D688B7BD605 /* Parsers */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		3F9332F68A7493F7895E857F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				17185E281E74B13A7EB0A3D1 /* Assets.xcassets */,
+				EFA60238FC15A6DF310E5DE5 /* Colors.xcassets */,
+				C09CE1749DBD98067915DDDA /* InfoPlist.xcstrings */,
+				23B971ACF93AE416216AA21A /* Localizable.xcstrings */,
+				175DFCC8EA52C33278D1E2FA /* Localizable.xcstrings.bak */,
+				356ABFC2DCB3E697D45715ED /* remindersLocalized.swift */,
+				0C07E282015E1E76DFE44E01 /* RmbColor.swift */,
+				02778853E9E610130E5A93EB /* RmbColorScheme.swift */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		68ADDD2CD000DD8EA5ED9C6C /* ReminderItemView */ = {
+			isa = PBXGroup;
+			children = (
+				072D98547F0B75A201B36367 /* ReminderCompleteButton.swift */,
+				153971BDEC506B899640A831 /* ReminderDateDescriptionView.swift */,
+				C092BFC7E4A9C7F1177058B9 /* ReminderItemView.swift */,
+				2F62A7B22ECBB761A670DE7B /* ReminderTagsView.swift */,
+				DE04E155D563F8941A468E27 /* ReminderEllipsisMenuView */,
+			);
+			path = ReminderItemView;
+			sourceTree = "<group>";
+		};
+		75A06CE63E607D688B7BD605 /* Parsers */ = {
+			isa = PBXGroup;
+			children = (
+				5A812A65FA45802B2694C9D8 /* CalendarParser.swift */,
+				79767C018194BCF8463E6EBD /* DateParser.swift */,
+				DCB74CAA6A4D08285EFA76BD /* PriorityParser.swift */,
+				443821CA3BED681EC2BD4A62 /* TagParser.swift */,
+			);
+			path = Parsers;
+			sourceTree = "<group>";
+		};
+		7D9A510D2781736D278BC9F0 /* reminders-menubar */ = {
+			isa = PBXGroup;
+			children = (
+				421D0BAA3CA67A3842D2607F /* AppCommands.swift */,
+				B98EF570F5882AAD81AD75A5 /* AppDelegate.swift */,
+				89A965953B791DB22ADFC092 /* Constants.swift */,
+				3BD766EA0B36791507ED209F /* MainPopoverSizing.swift */,
+				E9BADAAF927109FE1B040E47 /* Extensions */,
+				BF1CD1160B3AA028E378E659 /* Models */,
+				E9F8190571A5A2A643418662 /* Preview Content */,
+				3F9332F68A7493F7895E857F /* Resources */,
+				3A0A07EB5909348CF6915F5B /* Services */,
+				CA55BC9D8F4B67DE51EDCD75 /* Views */,
+			);
+			path = "reminders-menubar";
+			sourceTree = "<group>";
+		};
+		A8B6AD0F46F8C558E3DC88CC /* SettingsView */ = {
+			isa = PBXGroup;
+			children = (
+				BDBF8F3C0F3426EECADE1B76 /* AboutSettingsTab.swift */,
+				D376445203272C51156D8506 /* CopySettingsTab.swift */,
+				806610BDF4FC8FFAE70B9102 /* GeneralSettingsTab.swift */,
+				2FF30EB4AC63997B4274300C /* KeyboardSettingsTab.swift */,
+				9DE1B1E696A0A13A84AC4B74 /* MenuBarSettingsTab.swift */,
+				4F9D9B276318C63F143B1109 /* ReminderSettingsTab.swift */,
+				B96AEF1363B87316B65F3602 /* SettingsDivider.swift */,
+				10E82A9F359EDAB1580F3BBD /* SettingsNoteStyle.swift */,
+				F2E33A47476CC68CA267610D /* SettingsSection.swift */,
+				9434635239211E5651BCEC62 /* SettingsView.swift */,
+			);
+			path = SettingsView;
+			sourceTree = "<group>";
+		};
+		AC11B5A1E127239AE7DA2920 /* Modifiers */ = {
+			isa = PBXGroup;
+			children = (
+				F18D6BCE6A0951AC2F747B1E /* ConfirmButtonModifier.swift */,
+				24412B0EAF187BC39207E4BE /* RmbBackgroundModifier.swift */,
+				2493A6761A136D1233C91043 /* TagPillModifier.swift */,
+			);
+			path = Modifiers;
+			sourceTree = "<group>";
+		};
+		BA797695D94AD68C9C0C0C0C /* ReminderList */ = {
+			isa = PBXGroup;
+			children = (
+				9BC4161B499569FBFD01FD41 /* CalendarReminderList.swift */,
+				F6DA4B423CE8A8CEA7434CC1 /* ReminderListSection.swift */,
+				6785CA6AAC594DC880F3456C /* TagReminderList.swift */,
+			);
+			path = ReminderList;
+			sourceTree = "<group>";
+		};
+		BF1CD1160B3AA028E378E659 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				7BBE432BFD6ED8D53ACDA445 /* CopyProperty.swift */,
+				D81FD068646D383C4EC8C928 /* PrioritizedReminders.swift */,
+				C3368018C13E5A95F6609D06 /* ReminderInterval.swift */,
+				BEA816926B2D25C171037FD0 /* ReminderItem.swift */,
+				5E533FFBFEE90D4B4F1C7B7A /* RemindersData.swift */,
+				09F31F437CF34B2564FEA43A /* RmbIcon.swift */,
+				208B898B6F0D40BB25512C03 /* RmbKeyCode.swift */,
+				958914D747C156F4029AEA0A /* RmbMenuBarCounterType.swift */,
+				8C7C462335FAB68E2BBDDCA7 /* RmbMenuBarPreviewTimeAhead.swift */,
+				61E75DFA0D19398584A50785 /* RmbRecurrenceOption.swift */,
+				036DDB399594255BAB6A89B0 /* RmbReminder.swift */,
+				77005B83388BC56B6D3D7CBD /* RmbSortingOrder.swift */,
+				64908D887B92C5A7877873DF /* RmbSymbol.swift */,
+				5515E46D43776012D1CE938B /* Tag.swift */,
+				BA797695D94AD68C9C0C0C0C /* ReminderList */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C6389EE13CEFC401CED020A1 /* ReminderEditView */ = {
+			isa = PBXGroup;
+			children = (
+				C1ED7DF584DCB6732ECCF1E5 /* ReminderDateTimeEditView.swift */,
+				5596AF3075E479515D612926 /* ReminderEditView.swift */,
+				4F4CFCE85E25AEFA5E154432 /* ReminderListEditView.swift */,
+				9CEC8B10C4F4E251E164DAF3 /* ReminderPriorityEditView.swift */,
+				295F536D4182824C614FCD23 /* ReminderRecurrenceEditView.swift */,
+				804E5EB3032E66B7311FB3C5 /* ReminderTagsEditView.swift */,
+			);
+			path = ReminderEditView;
+			sourceTree = "<group>";
+		};
+		CA55BC9D8F4B67DE51EDCD75 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				3553BCE25734EE585A8A6ABF /* ContentView.swift */,
+				6AB1CD2A2D7370E5E0FF9BA4 /* SpotlightView.swift */,
+				2EDBEF2C12C267E0022575BB /* EmptyStates */,
+				249C8273974C7050BB11CDA4 /* Helpers */,
+				C6389EE13CEFC401CED020A1 /* ReminderEditView */,
+				68ADDD2CD000DD8EA5ED9C6C /* ReminderItemView */,
+				A8B6AD0F46F8C558E3DC88CC /* SettingsView */,
+				F7BCA217A527ECDE5B118E82 /* ToolbarView */,
+				F5320E4E7123FB1A1466501F /* UpcomingRemindersView */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		DE04E155D563F8941A468E27 /* ReminderEllipsisMenuView */ = {
+			isa = PBXGroup;
+			children = (
+				D5AC744AD2DCDC6E71DB7D42 /* ReminderChangeDueDateOptionMenu.swift */,
+				707CD96B56D965EC09978372 /* ReminderChangeListOptionMenu.swift */,
+				96632DA796D63261795297C5 /* ReminderChangePriorityOptionMenu.swift */,
+				24E9A7D5D7C77243EBD9BC72 /* ReminderEllipsisMenuView.swift */,
+			);
+			path = ReminderEllipsisMenuView;
+			sourceTree = "<group>";
+		};
+		E9BADAAF927109FE1B040E47 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				4A5F3E0D17707FA2C55E3C1F /* Array+Extension.swift */,
+				6579C397D348EF79F2FD4A7C /* ArrayReminderItem+Extension.swift */,
+				6BCCF6B992A3CAD36225391B /* Binding+Extensions.swift */,
+				159DB5C5ED367D6476939888 /* Calendar+Extensions.swift */,
+				5E44BA2DC9E1460578B0BD74 /* Color+Extensions.swift */,
+				3B87F5B574FBBB84926B1AE1 /* Comparable+Extensions.swift */,
+				E91973B93E9D31521592AC73 /* Date+Extensions.swift */,
+				8C26D325699FB2060ADF9009 /* EKCalendar+Extensions.swift */,
+				D0941AB7906E8E8E7E7CA08C /* EKRecurrenceRule+Extensions.swift */,
+				884811E9C783F55701054258 /* EKReminder+Extensions.swift */,
+				B3B7E320C12A24A05C53321A /* EKReminderPriority+Extensions.swift */,
+				247F964CD66CDCB2EAA4F25C /* EnvironmentValues+Extensions.swift */,
+				1BC9E82815A24F934FBD4FFB /* Image+Extensions.swift */,
+				6AF596E7AF664325F972B39D /* Label+Extensions.swift */,
+				A313F556242E6BAAF696998A /* NSApplication+Extensions.swift */,
+				5E1B41238EBCCB88772FFF6C /* NSCursor+Extensions.swift */,
+				F930C24276A925D030D413D4 /* NSTableView+Extensions.swift */,
+				AAAD55A09A3A109C44071753 /* NSTextField+Extensions.swift */,
+				FFEAC361BDA38117A3D6BEA3 /* String+Extensions.swift */,
+				B173C6514160398DCF8596F1 /* URL+Extensions.swift */,
+				E764F5A6E3098C56DE6342AB /* UserDefaults+Extensions.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		E9F8190571A5A2A643418662 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				0DEE26871565EFD0E634D246 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		F5320E4E7123FB1A1466501F /* UpcomingRemindersView */ = {
+			isa = PBXGroup;
+			children = (
+				1DB1F829754C0C0EDAC89EAD /* UpcomingRemindersContent.swift */,
+			);
+			path = UpcomingRemindersView;
+			sourceTree = "<group>";
+		};
+		F7BCA217A527ECDE5B118E82 /* ToolbarView */ = {
+			isa = PBXGroup;
+			children = (
+				9B879C6F104886B598D7026C /* CreateReminderButton.swift */,
+				B417FBBEBB4E3BA5B981415B /* FilterPanelContentView.swift */,
+				C1D036521ADA73374C3EC00D /* FilterPanelController.swift */,
+				9BFD32E8893122FA900194F4 /* FilterReminderListButton.swift */,
+				EC01FCF3B4274DC6B738F280 /* OpenSettingButton.swift */,
+				CEDE612DA71B85FC11010114 /* ToolbarButtonLabel.swift */,
+				C96E04914057A9E19CAD7352 /* ToolbarButtonModifier.swift */,
+				36AECF24DAF365F9A878003F /* ToolbarView.swift */,
+			);
+			path = ToolbarView;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AD0CC55086408840EB94532B /* RemindersSpotlight */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A92580DF8E85F6480ABF19D4 /* Build configuration list for PBXNativeTarget "RemindersSpotlight" */;
+			buildPhases = (
+				120213B74101588315231085 /* Sources */,
+				823C0489863EC28C252B64C6 /* Resources */,
+				634E3199546A435F76EA114A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RemindersSpotlight;
+			packageProductDependencies = (
+				7316F70B10C5D49AD7588CB9 /* KeyboardShortcuts */,
+			);
+			productName = RemindersSpotlight;
+			productReference = 697F1919C107CF92816739C0 /* RemindersSpotlight.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3FB4A16F90FC6EECE15AF52C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					AD0CC55086408840EB94532B = {
+						DevelopmentTeam = 8LU76B5Q9J;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 7538552BCBAD076FC6FA92A3 /* Build configuration list for PBXProject "RemindersSpotlight" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 211B63FAC3E5C9A556F76C44;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AF51D8C6C4DA1E9990824030 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 27A9A6B117127F593651BCCF /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AD0CC55086408840EB94532B /* RemindersSpotlight */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		823C0489863EC28C252B64C6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F7DA265619739F2C4F9AE2CE /* Assets.xcassets in Resources */,
+				A548BE8023E5325E164F8C6D /* Colors.xcassets in Resources */,
+				7B7D5B967DCB5AF78E160FAC /* InfoPlist.xcstrings in Resources */,
+				DB56492C1AE50A8C431F8030 /* Localizable.xcstrings in Resources */,
+				71E96918A31143CE06189DAB /* Localizable.xcstrings.bak in Resources */,
+				972186C6F5258693D923917B /* Preview Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		120213B74101588315231085 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5653BA26B3C0D96ABE0A629C /* AboutSettingsTab.swift in Sources */,
+				87C36041CF766C64D1380384 /* AppCommands.swift in Sources */,
+				E8AF290E82F286EAC4EAA251 /* AppDelegate.swift in Sources */,
+				6338794B5875D3516F6033EB /* Array+Extension.swift in Sources */,
+				148AC9D90A78144AE14A0515 /* ArrayReminderItem+Extension.swift in Sources */,
+				D34193F1180EA9CB7E071E31 /* Binding+Extensions.swift in Sources */,
+				D06BEFF67BB171F42BB566A3 /* Calendar+Extensions.swift in Sources */,
+				31A8324DBFFC8096D87F7E52 /* CalendarParser.swift in Sources */,
+				2A8458B7349CBE27134CF125 /* CalendarReminderList.swift in Sources */,
+				38F8C15CB5DA3C571D26F3FC /* CalendarTitle.swift in Sources */,
+				4DFECD2751FAE14F9A73AD84 /* Color+Extensions.swift in Sources */,
+				3D6414B001B1B92427526088 /* ColoredDotTitle.swift in Sources */,
+				B5F9AD66DDFE925B85B2DBA0 /* Comparable+Extensions.swift in Sources */,
+				213090496DF1E8F6156B2151 /* ConfirmButtonModifier.swift in Sources */,
+				36370D204F69EFC010680246 /* Constants.swift in Sources */,
+				6B3A21EC8E2C71ACF4376979 /* ContentView.swift in Sources */,
+				3AE9535BF4ECA90DBED415FC /* CopyProperty.swift in Sources */,
+				680E22E9184BDB67942C47D5 /* CopySettingsTab.swift in Sources */,
+				E593178FBB38DBA3FAFD2756 /* CopyShortcutCoordinator.swift in Sources */,
+				D4134B0EA3E355ECA7D5E0F7 /* CreateReminderButton.swift in Sources */,
+				CDAC9699E20EF05755D9C9AF /* Date+Extensions.swift in Sources */,
+				771510979F696CDC8A93E85B /* DateParser.swift in Sources */,
+				C57B596B82BABF8865198EEF /* EKCalendar+Extensions.swift in Sources */,
+				505CA301AC5FC8C02DD000FE /* EKRecurrenceRule+Extensions.swift in Sources */,
+				6D08B1EA7985D8EF69817ABD /* EKReminder+Extensions.swift in Sources */,
+				A8A7503B604F6F88463007C5 /* EKReminderPriority+Extensions.swift in Sources */,
+				FADBAC9D957F11E2FB85FC4D /* EnvironmentValues+Extensions.swift in Sources */,
+				26D463D3EC99EC102FC604F0 /* FilterPanelContentView.swift in Sources */,
+				3107EAD5557B325EC940EC8D /* FilterPanelController.swift in Sources */,
+				20B4262E4B1C75B3E377133A /* FilterReminderListButton.swift in Sources */,
+				BC5BE7DE276ACC819C79F562 /* GeneralSettingsTab.swift in Sources */,
+				01CBA2860B56C57924702475 /* Image+Extensions.swift in Sources */,
+				2231F2231853C00C7F5C91B8 /* KeyboardSettingsTab.swift in Sources */,
+				092C2A0AB5AB3877340749D3 /* KeyboardShortcutService.swift in Sources */,
+				BB94F7F00B93DD182184CDE9 /* Label+Extensions.swift in Sources */,
+				E4FC445A137C025CEBE84AB4 /* MainPopoverSizing.swift in Sources */,
+				372C5525F4A4232E4EE6DC37 /* MainWindow.swift in Sources */,
+				7029EBFF6F01856166DFD26F /* MenuBarPreviewService.swift in Sources */,
+				FFE56631D9A09DF8CEC86A6E /* MenuBarSettingsTab.swift in Sources */,
+				D45871A045C8D021D16B0CE2 /* NSApplication+Extensions.swift in Sources */,
+				D0525DD1D63A4DB90DCCD8E1 /* NSCursor+Extensions.swift in Sources */,
+				BCE05E02EF302DDCDA156265 /* NSTableView+Extensions.swift in Sources */,
+				0774A02439F6C3464D2E09E5 /* NSTextField+Extensions.swift in Sources */,
+				36CBA7A52AD43282C3A35D88 /* NoFilterSelectedView.swift in Sources */,
+				764FF5BEAC1B16AB43D61FB4 /* NoReminderItemsView.swift in Sources */,
+				13A2BC7F4B0B22C520AEAAED /* NoReminderListsView.swift in Sources */,
+				C75FC10F1EEC825381BA0516 /* OpenSettingButton.swift in Sources */,
+				2EF983312814A09EFFCBAA43 /* PopoverResizeHandleView.swift in Sources */,
+				5D50B8AF3E8D7739913DC7CF /* PrioritizedReminders.swift in Sources */,
+				3A83AAA2ACF1AE7A286DE03B /* PriorityParser.swift in Sources */,
+				28F8408A1AB1246D903635B4 /* ReminderChangeDueDateOptionMenu.swift in Sources */,
+				C700D73CA3D707548DDE570B /* ReminderChangeListOptionMenu.swift in Sources */,
+				031A4466C60F7A5217392953 /* ReminderChangePriorityOptionMenu.swift in Sources */,
+				39EA72BA96AEC3584C881617 /* ReminderCompleteButton.swift in Sources */,
+				E2509CCE3B270522D6B566A4 /* ReminderCopyService.swift in Sources */,
+				D05BF5652926A1A21C1EBF56 /* ReminderDateDescriptionView.swift in Sources */,
+				2604775A9B3264B05EB20CD5 /* ReminderDateTimeEditView.swift in Sources */,
+				970EF68905226A9149A74BC6 /* ReminderEditView.swift in Sources */,
+				64E80BC95A39A03433266AF5 /* ReminderEllipsisMenuView.swift in Sources */,
+				EF622A1044F8846BCBA0446C /* ReminderExternalLinksView.swift in Sources */,
+				E67578831EDC70E4CE16FC2D /* ReminderInterval.swift in Sources */,
+				696F39A77020C73398AFEDC7 /* ReminderItem.swift in Sources */,
+				057CAEA13B1EFAC5A3606170 /* ReminderItemView.swift in Sources */,
+				B4310D46DC287AAD3DA688D2 /* ReminderListEditView.swift in Sources */,
+				283CEDCDBD1EB12343FC3FB9 /* ReminderListSection.swift in Sources */,
+				815FB0FCFDD2D24274D3AE57 /* ReminderLoadingView.swift in Sources */,
+				6FB2F5363B22458DAC1DB6DC /* ReminderPriorityEditView.swift in Sources */,
+				B3E1372DFDC16059578912AC /* ReminderRecurrenceEditView.swift in Sources */,
+				1CF39DCEDECBCF9F575762E0 /* ReminderSettingsTab.swift in Sources */,
+				67F75674687EDAE895C0BA87 /* ReminderTagsEditView.swift in Sources */,
+				258878F2C5D60432A625D827 /* ReminderTagsView.swift in Sources */,
+				9B49104F5846936D624F6DE9 /* RemindersData.swift in Sources */,
+				F7F1BD9231DD18D1BA2DA72C /* RemindersService.swift in Sources */,
+				ABEAA256CD7F4C98054FEC31 /* RemoveReminderAlert.swift in Sources */,
+				1505C45FD5688F503B897719 /* RightClickMenuHelper.swift in Sources */,
+				B0E59F9EF9D7F0C18B3D051F /* RmbBackgroundModifier.swift in Sources */,
+				3096F464080C02162608D0C2 /* RmbColor.swift in Sources */,
+				0569560AF47FEC68C26F00E2 /* RmbColorScheme.swift in Sources */,
+				1E1BFECBD88DBAE6F0D5D38A /* RmbDatePicker.swift in Sources */,
+				07C66F1956EC9068DB4A8B03 /* RmbHighlightedTextField.swift in Sources */,
+				0AF6778469051B63169C307E /* RmbIcon.swift in Sources */,
+				F4C2A2332522266662A4061D /* RmbKeyCode.swift in Sources */,
+				DB9FC57999C3B6CE369824BF /* RmbMenuBarCounterType.swift in Sources */,
+				1E6E8E77205469148A9388AC /* RmbMenuBarPreviewTimeAhead.swift in Sources */,
+				A97439B1CEC476E6779715FE /* RmbRecurrenceOption.swift in Sources */,
+				574B32A6CB7139AEA7BF1E9A /* RmbReminder.swift in Sources */,
+				047F1C596A933C51E718761E /* RmbSortingOrder.swift in Sources */,
+				88A2874902A3F3958A0A0531 /* RmbSymbol.swift in Sources */,
+				5723F2FF2CCA6210FBD71A63 /* SettingsCoordinator.swift in Sources */,
+				29F8DD2217BEDC4C821BC7F5 /* SettingsDivider.swift in Sources */,
+				4DFE3518B2F8F92D49D48B7C /* SettingsNoteStyle.swift in Sources */,
+				AF336DEA5ACB931CCB429B19 /* SettingsOpenerView.swift in Sources */,
+				720CB889D64BAB7F6F005E3D /* SettingsSection.swift in Sources */,
+				E74EFCAD642F83EF49CD601A /* SettingsView.swift in Sources */,
+				05E0E091682C366226B7B506 /* ShowMoreRemindersButton.swift in Sources */,
+				7FE51BF2EEAF58C815AAE436 /* SpotlightView.swift in Sources */,
+				7F8352631020AF5D75277BB5 /* String+Extensions.swift in Sources */,
+				5F46907DD8CC1DA86A4A3BE0 /* Tag.swift in Sources */,
+				A1EFB3F21382ADAA57324FB7 /* TagParser.swift in Sources */,
+				DCFDEF8EBB42773C39AE990C /* TagPillModifier.swift in Sources */,
+				078D2E73C0B436675F42D5B5 /* TagReminderList.swift in Sources */,
+				09DB9267F9FD601659D41F3A /* ToolbarButtonLabel.swift in Sources */,
+				B734BF482E7F524BE4881FE7 /* ToolbarButtonModifier.swift in Sources */,
+				84DFC5BF6ED948A0D0556BD5 /* ToolbarView.swift in Sources */,
+				9C978BDB58496C1BCE5D4A5B /* URL+Extensions.swift in Sources */,
+				C5321559D2815BA94B0460EF /* UpcomingRemindersContent.swift in Sources */,
+				6ED8CB9CDF6C4D3D9A67840B /* UserDefaults+Extensions.swift in Sources */,
+				03F45B0771442141AEF03DEE /* UserPreferences.swift in Sources */,
+				144144571898A19F58530E09 /* remindersLocalized.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		35197D598665C418EB4A77FC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "reminders-menubar/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewmott.reminders-menubar";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		6C289B125B78B89D3A6362F6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 8LU76B5Q9J;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "Reminders Spotlight";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A9E0DE1A12D3C6FF3258F0CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 8LU76B5Q9J;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "Reminders Spotlight";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D4A769D0547D2081B6DF726E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "reminders-menubar/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewmott.reminders-menubar";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7538552BCBAD076FC6FA92A3 /* Build configuration list for PBXProject "RemindersSpotlight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A9E0DE1A12D3C6FF3258F0CD /* Debug */,
+				6C289B125B78B89D3A6362F6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A92580DF8E85F6480ABF19D4 /* Build configuration list for PBXNativeTarget "RemindersSpotlight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				35197D598665C418EB4A77FC /* Debug */,
+				D4A769D0547D2081B6DF726E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AF51D8C6C4DA1E9990824030 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7316F70B10C5D49AD7588CB9 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF51D8C6C4DA1E9990824030 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3FB4A16F90FC6EECE15AF52C /* Project object */;
+}

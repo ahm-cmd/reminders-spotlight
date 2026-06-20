@@ -1,5 +1,26 @@
 import Foundation
 
+/// Caches fully-configured `DateFormatter`s keyed by locale + configuration.
+/// Creating a `DateFormatter` is one of the most expensive Foundation
+/// operations; the cached instances are only ever read (`string(from:)`), which
+/// is thread-safe on modern macOS, so they're never mutated after building.
+private final class RmbDateFormatterCache {
+    static let shared = RmbDateFormatterCache()
+    private let lock = NSLock()
+    private var formatters: [String: DateFormatter] = [:]
+
+    func formatter(forKey key: String, build: () -> DateFormatter) -> DateFormatter {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = formatters[key] {
+            return cached
+        }
+        let formatter = build()
+        formatters[key] = formatter
+        return formatter
+    }
+}
+
 extension Date {
     var isPast: Bool {
         return self.timeIntervalSinceNow < 0
@@ -58,23 +79,37 @@ extension Date {
 
     private func dateDescription(withTime showTimeDescription: Bool, relativeFormatting: Bool) -> String {
         let locale = rmbTimeFormattedLocale()
-        let dateFormatter = DateFormatter()
 
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .none
-        dateFormatter.locale = locale
-        dateFormatter.doesRelativeDateFormatting = relativeFormatting
+        // Reuse cached formatters — `DateFormatter()` is very expensive to
+        // create, and this runs for every reminder row's due-date label.
+        let dateFormatter = RmbDateFormatterCache.shared.formatter(
+            forKey: "date|\(locale.identifier)|rel:\(relativeFormatting)"
+        ) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            formatter.locale = locale
+            formatter.doesRelativeDateFormatting = relativeFormatting
+            return formatter
+        }
         let dateString = dateFormatter.string(from: self)
 
         guard showTimeDescription else {
             return dateString
         }
 
-        dateFormatter.doesRelativeDateFormatting = false
-        dateFormatter.dateStyle = .none
-        // NOTE: "jm" adapts hour format (12h/24h) to the locale's hour cycle preference
-        dateFormatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "jm", options: 0, locale: locale)
-        let timeString = dateFormatter.string(from: self)
+        let timeFormatter = RmbDateFormatterCache.shared.formatter(
+            forKey: "time|\(locale.identifier)"
+        ) {
+            let formatter = DateFormatter()
+            formatter.locale = locale
+            formatter.dateStyle = .none
+            formatter.doesRelativeDateFormatting = false
+            // NOTE: "jm" adapts hour format (12h/24h) to the locale's hour cycle preference
+            formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "jm", options: 0, locale: locale)
+            return formatter
+        }
+        let timeString = timeFormatter.string(from: self)
 
         return "\(dateString), \(timeString)"
     }

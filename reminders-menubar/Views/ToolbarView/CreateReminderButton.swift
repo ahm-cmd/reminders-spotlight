@@ -22,10 +22,7 @@ struct CreateReminderButton: View {
         .modifier(ConfirmButtonModifier())
         .help(rmbLocalized(.newReminderButtonHelp))
         .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSPopover.didCloseNotification,
-                object: AppDelegate.shared.popover
-            )
+            NotificationCenter.default.publisher(for: .mainWindowDidClose)
         ) { _ in
             resetCreateReminderSheetState()
         }

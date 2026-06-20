@@ -38,12 +38,6 @@ struct AboutSettingsTab: View {
                     }) {
                         Text(rmbLocalized(.seeMoreOnGitHubButton))
                     }
-
-                    Button(action: {
-                        UpdateController.shared.checkForUpdates()
-                    }) {
-                        Text(rmbLocalized(.checkForUpdatesButton))
-                    }
                 }
                 .padding(.top, 16)
             }

@@ -32,21 +32,27 @@ struct ReminderItemView: View {
 
     @ViewBuilder
     private func mainReminderItemView() -> some View {
+        // Compute each (reflection-backed / formatter-backed) value once per
+        // render instead of re-deriving them in multiple places below.
+        let tagNames = currentTagNames()
+        let dateDescription = reminderItem.reminder.relativeDateDescription
+        let hasDueDate = dateDescription != nil
+        let showExternalLinks = userPreferences.showExternalLinksInReminderItem
+        let attachedUrl = showExternalLinks ? reminderItem.reminder.attachedUrl : nil
+        let mailUrl = showExternalLinks ? reminderItem.reminder.mailUrl : nil
+        let shouldShowExternalLinks = showExternalLinks && (attachedUrl != nil || mailUrl != nil)
+
         HStack(alignment: .top) {
             ReminderCompleteButton(reminderItem: reminderItem, isPendingCompletion: $isPendingCompletion)
 
             VStack(spacing: 4) {
                 reminderTitleRow()
 
-                if #available(macOS 12, *), !reminderItem.reminder.ekTags.isEmpty {
-                    ReminderTagsView(tagNames: reminderItem.reminder.ekTags.map(\.name))
+                if #available(macOS 12, *), !tagNames.isEmpty {
+                    ReminderTagsView(tagNames: tagNames)
                 }
 
-                let hasDueDate = reminderItem.reminder.relativeDateDescription != nil
-                let shouldShowExternalLinks = userPreferences.showExternalLinksInReminderItem
-                    && (reminderItem.reminder.attachedUrl != nil || reminderItem.reminder.mailUrl != nil)
-
-                if let dateDescription = reminderItem.reminder.relativeDateDescription {
+                if let dateDescription {
                     HStack(alignment: .bottom) {
                         ReminderDateDescriptionView(
                             dateDescription: dateDescription,
@@ -66,8 +72,8 @@ struct ReminderItemView: View {
                 if shouldShowExternalLinks {
                     HStack(alignment: .bottom) {
                         ReminderExternalLinksView(
-                            attachedUrl: reminderItem.reminder.attachedUrl,
-                            mailUrl: reminderItem.reminder.mailUrl,
+                            attachedUrl: attachedUrl,
+                            mailUrl: mailUrl,
                             isCompact: true
                         )
 
@@ -135,8 +141,18 @@ struct ReminderItemView: View {
         }
     }
 
+    private func currentTagNames() -> [String] {
+        // Cached on the snapshot at construction — reading the tags uses private
+        // selector reflection, far too expensive to redo on every row render.
+        return reminderItem.tagNames
+    }
+
     private func reminderTitleText() -> Text {
-        let titleText = Text(LocalizedStringKey(reminderItem.reminder.title.toDetectedLinkAttributedString()))
+        // LocalizedStringKey renders any markdown in the title. We intentionally
+        // don't run NSDataDetector here: it was scanned per row on every render
+        // and its result was discarded (.toDetectedLinkAttributedString returned
+        // the plain string), so it was pure CPU waste.
+        let titleText = Text(LocalizedStringKey(reminderItem.reminder.title))
 
         guard let prioritySymbol = reminderItem.reminder.ekPriority.rmbSymbol else {
             return titleText

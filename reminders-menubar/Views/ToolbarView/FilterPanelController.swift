@@ -50,9 +50,6 @@ final class FilterPanelController: ObservableObject {
         self.panel = panel
         isVisible = true
 
-        // NOTE: Prevent macOS from auto-dismissing the popover when clicking the filter panel.
-        AppDelegate.shared.popover.behavior = .applicationDefined
-
         startEventMonitors()
         observePopoverClose()
     }
@@ -64,9 +61,6 @@ final class FilterPanelController: ObservableObject {
         }
         panel = nil
         isVisible = false
-
-        // NOTE: Restore default popover dismissal behavior.
-        AppDelegate.shared.popover.behavior = .transient
 
         stopEventMonitors()
         stopPopoverCloseObserver()
@@ -189,6 +183,13 @@ final class FilterPanelController: ObservableObject {
         panel?.frame.contains(point) == true || submenuPanel?.frame.contains(point) == true
     }
 
+    /// Screen-space hit test for the main window's outside-click dismissal, so a
+    /// click inside the filter panel (or its submenu) doesn't close the main
+    /// window. False when the filter panel isn't shown.
+    func containsScreenPoint(_ point: NSPoint) -> Bool {
+        isVisible && isPointInsideAnyPanel(point)
+    }
+
     private func startEventMonitors() {
         stopEventMonitors()
 
@@ -227,8 +228,8 @@ final class FilterPanelController: ObservableObject {
         stopPopoverCloseObserver()
 
         closeObserver = NotificationCenter.default.addObserver(
-            forName: NSPopover.didCloseNotification,
-            object: AppDelegate.shared.popover,
+            forName: .mainWindowDidClose,
+            object: nil,
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {

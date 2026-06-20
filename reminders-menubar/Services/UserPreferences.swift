@@ -5,6 +5,7 @@ private enum PreferencesKeys {
     static let reminderMenuBarIcon = "reminderMenuBarIcon"
     static let calendarIdentifiersFilter = "calendarIdentifiersFilter"
     static let calendarIdentifierForSaving = "calendarIdentifierForSaving"
+    static let listShortcuts = "listShortcuts"
     static let autoSuggestTodayForNewReminders = "autoSuggestTodayForNewReminders"
     static let removeParsedDateFromTitle = "removeParsedDateFromTitle"
     static let rmbColorScheme = "rmbColorScheme"
@@ -107,6 +108,18 @@ class UserPreferences: ObservableObject {
         }
         set {
             UserPreferences.defaults.set(newValue, forKey: PreferencesKeys.calendarIdentifierForSaving)
+        }
+    }
+
+    /// User-defined `@` shortcuts: a short key (without the `@`, lowercased) →
+    /// the calendar identifier of the list to assign. e.g. ["p": <Personal id>]
+    /// so typing "@p" assigns the Personal list and strips "@p" from the title.
+    var listShortcuts: [String: String] {
+        get {
+            return UserPreferences.defaults.dictionary(forKey: PreferencesKeys.listShortcuts) as? [String: String] ?? [:]
+        }
+        set {
+            UserPreferences.defaults.set(newValue, forKey: PreferencesKeys.listShortcuts)
         }
     }
     

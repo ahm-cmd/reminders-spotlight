@@ -1272,7 +1272,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Every %d days"
+                  "value" : "Every %i days"
                 }
               }
             }
@@ -1295,7 +1295,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Every %d months"
+                  "value" : "Every %i months"
                 }
               }
             }
@@ -1329,7 +1329,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Every %d weeks"
+                  "value" : "Every %i weeks"
                 }
               }
             }
@@ -1352,7 +1352,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Every %d years"
+                  "value" : "Every %i years"
                 }
               }
             }

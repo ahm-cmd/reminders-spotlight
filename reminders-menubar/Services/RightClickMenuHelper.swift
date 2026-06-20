@@ -1,4 +1,5 @@
 import Cocoa
+import EventKit
 
 @MainActor
 final class RightClickMenuHelper: NSObject {
@@ -10,16 +11,24 @@ final class RightClickMenuHelper: NSObject {
 
     // MARK: - Build Menu
 
-    func buildRightClickMenu() -> NSMenu {
+    /// The dropdown shown when the menu bar item is clicked.
+    func buildStatusBarMenu() -> NSMenu {
         let menu = NSMenu()
 
-        menu.addItem(makeMenuItem(
-            title: rmbLocalized(.launchAtLoginOption),
-            action: #selector(toggleLaunchAtLogin),
-            state: UserPreferences.shared.launchAtLoginIsEnabled ? .on : .off
-        ))
+        // Quick-entry (mirrors the global ⌥Space shortcut).
+        let newReminderItem = makeMenuItem(
+            title: String("New Reminder"),
+            action: #selector(newReminder),
+            systemSymbolName: "plus.circle"
+        )
+        newReminderItem.keyEquivalent = " "
+        newReminderItem.keyEquivalentModifierMask = .option
+        menu.addItem(newReminderItem)
 
         menu.addItem(.separator())
+
+        // Which lists to display.
+        addCalendarFilterItems(to: menu)
 
         menu.addItem(makeMenuItem(
             title: rmbLocalized(.reloadRemindersDataButton),
@@ -28,20 +37,6 @@ final class RightClickMenuHelper: NSObject {
         ))
 
         menu.addItem(.separator())
-
-        if UpdateController.shared.isOutdated {
-            menu.addItem(makeMenuItem(
-                title: rmbLocalized(.updateAvailableNoticeButton),
-                action: #selector(showUpdate),
-                systemSymbolName: "arrow.down.circle"
-            ))
-        } else {
-            menu.addItem(makeMenuItem(
-                title: rmbLocalized(.checkForUpdatesButton),
-                action: #selector(checkForUpdates),
-                systemSymbolName: "arrow.down.circle"
-            ))
-        }
 
         menu.addItem(makeMenuItem(
             title: rmbLocalized(.appSettingsButton),
@@ -56,12 +51,45 @@ final class RightClickMenuHelper: NSObject {
         ))
 
         menu.addItem(makeMenuItem(
+            title: rmbLocalized(.launchAtLoginOption),
+            action: #selector(toggleLaunchAtLogin),
+            state: UserPreferences.shared.launchAtLoginIsEnabled ? .on : .off
+        ))
+
+        menu.addItem(.separator())
+
+        menu.addItem(makeMenuItem(
             title: rmbLocalized(.appQuitButton),
             action: #selector(quitApp),
             systemSymbolName: "xmark.rectangle"
         ))
 
         return menu
+    }
+
+    /// Adds a checkable item per Reminders list; toggling shows/hides that list.
+    private func addCalendarFilterItems(to menu: NSMenu) {
+        let data = AppDelegate.shared.remindersData
+        let calendars = data.availableCalendars
+        guard !calendars.isEmpty else { return }
+
+        let header = NSMenuItem(title: String("Show Lists"), action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
+
+        let selected = Set(data.calendarIdentifiersFilter)
+        for calendar in calendars {
+            let item = makeMenuItem(
+                title: calendar.title,
+                action: #selector(toggleCalendarFilter(_:)),
+                state: selected.contains(calendar.calendarIdentifier) ? .on : .off
+            )
+            item.representedObject = calendar.calendarIdentifier
+            item.image = colorDot(calendar.cgColor)
+            menu.addItem(item)
+        }
+
+        menu.addItem(.separator())
     }
 
     // MARK: - Helpers
@@ -83,7 +111,33 @@ final class RightClickMenuHelper: NSObject {
         return item
     }
 
+    /// A small filled circle in the list's color, for the list toggle items.
+    private func colorDot(_ cgColor: CGColor?) -> NSImage? {
+        guard let cgColor, let color = NSColor(cgColor: cgColor) else { return nil }
+        let size = NSSize(width: 10, height: 10)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        color.setFill()
+        NSBezierPath(ovalIn: NSRect(origin: .zero, size: size)).fill()
+        image.unlockFocus()
+        return image
+    }
+
     // MARK: - Actions
+
+    @objc private func newReminder() {
+        AppDelegate.shared.openEntryWindow()
+    }
+
+    @objc private func toggleCalendarFilter(_ sender: NSMenuItem) {
+        guard let identifier = sender.representedObject as? String else { return }
+        let data = AppDelegate.shared.remindersData
+        if data.calendarIdentifiersFilter.contains(identifier) {
+            data.calendarIdentifiersFilter.removeAll { $0 == identifier }
+        } else {
+            data.calendarIdentifiersFilter.append(identifier)
+        }
+    }
 
     @objc private func toggleLaunchAtLogin() {
         UserPreferences.shared.launchAtLoginIsEnabled.toggle()
@@ -95,14 +149,6 @@ final class RightClickMenuHelper: NSObject {
 
     @objc private func openSettingsAction() {
         NSApp.openAppSettings()
-    }
-
-    @objc private func checkForUpdates() {
-        UpdateController.shared.checkForUpdates()
-    }
-
-    @objc private func showUpdate() {
-        UpdateController.shared.showUpdate()
     }
 
     @objc private func openAbout() {

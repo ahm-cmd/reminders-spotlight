@@ -12,6 +12,7 @@ struct SettingsOpenerView: View {
         Color.clear
             .frame(width: 0, height: 0)
             .allowsHitTesting(false)
+            .background(SettingsOpenerWindowHider())
             .onReceive(NotificationCenter.default.publisher(for: .openSettingsRequest)) { _ in
                 Task { @MainActor in
                     await handleOpenSettingsRequest()
@@ -100,5 +101,39 @@ struct SettingsOpenerView: View {
                     NSApp.setActivationPolicy(.accessory)
                 }
             }
+    }
+}
+
+/// Orders out the host window of this (macOS 14+) Settings-opener scene. The
+/// window exists only to host `openSettings()` and a notification subscriber;
+/// left on screen it shows as a blank tile in Mission Control and the window
+/// switcher. Ordering it out keeps the scene's view alive (so opening Settings
+/// still works) while removing it from Mission Control. Doing this from the view
+/// — rather than scanning `NSApp.windows` from the app delegate — guarantees the
+/// window already exists, so it can't be missed by a timing race.
+@available(macOS 14.0, *)
+private struct SettingsOpenerWindowHider: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        hide(from: view, attempt: 0)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private func hide(from view: NSView, attempt: Int) {
+        DispatchQueue.main.async {
+            guard let window = view.window else {
+                if attempt < 20 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        hide(from: view, attempt: attempt + 1)
+                    }
+                }
+                return
+            }
+            window.isExcludedFromWindowsMenu = true
+            window.collectionBehavior.insert(.ignoresCycle)
+            window.orderOut(nil)
+        }
     }
 }

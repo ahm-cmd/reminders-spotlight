@@ -1,3 +1,18 @@
+# Reminders Spotlight
+
+A personal fork of [reminders-menubar](https://github.com/DamascenoRafael/reminders-menubar) by Rafael Damasceno, reworked into a Spotlight-style quick-entry app for Apple Reminders:
+
+- A centered, Spotlight-style panel on **⌥Space** with natural-language entry — dates, lists, priorities, and tags are parsed as you type.
+- User-defined **`@` shortcuts** that route a reminder to a specific list (Settings → Shortcuts), e.g. `@p` → Personal.
+- **Move the mouse** to browse all your reminders; **start typing** to focus on writing the new one.
+- A menu-bar dropdown for choosing which lists to show, settings, and quit.
+
+**Build:** this uses [XcodeGen](https://github.com/yonaskolb/XcodeGen). Run `xcodegen generate`, then open `RemindersSpotlight.xcodeproj` — or run `./build_install.sh` to build, sign, and install to `/Applications`.
+
+This fork remains licensed under the **GNU GPLv3** (see [LICENSE](LICENSE)); all original credit goes to Rafael Damasceno. The original project's README follows below.
+
+---
+
 <div align="center">
   <img
     src="docs/images/reminders-icon.png"

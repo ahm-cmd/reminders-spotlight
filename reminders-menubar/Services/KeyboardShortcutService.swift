@@ -2,7 +2,7 @@ import SwiftUI
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
-    static let openRemindersMenuBar = Self("OpenRemindersMenuBar", default: .init(.r, modifiers: [.command, .option]))
+    static let openRemindersMenuBar = Self("OpenRemindersMenuBar", default: .init(.space, modifiers: [.option]))
 }
 
 private enum ShortcutsKeys {
@@ -20,7 +20,8 @@ class KeyboardShortcutService: ObservableObject {
     private static let defaults = UserDefaults.standard
     
     @Published var isOpenRemindersMenuBarEnabled: Bool = {
-        return defaults.bool(forKey: ShortcutsKeys.isOpenRemindersMenuBarEnabled)
+        // Default to enabled so ⌥Space works out of the box.
+        return defaults.boolWithDefaultValueTrue(forKey: ShortcutsKeys.isOpenRemindersMenuBarEnabled)
     }() {
         didSet {
             KeyboardShortcutService.defaults.set(

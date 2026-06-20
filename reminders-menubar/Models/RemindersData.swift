@@ -19,7 +19,6 @@ class RemindersData: ObservableObject {
         addUpcomingObservers()
         addTagObservers()
         addMenuBarObservers()
-        addSearchObservers()
     }
 
     private func addDataObservers() {
@@ -124,25 +123,6 @@ class RemindersData: ObservableObject {
         .store(in: &cancellationTokens)
     }
 
-    private func addSearchObservers() {
-        $searchText
-            .dropFirst()
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .combineLatest($searchableReminders)
-            .sink { [weak self] query, cached in
-                guard let self else { return }
-                guard showingSearch, !query.isEmpty, let cached else {
-                    searchResults = nil
-                    return
-                }
-                searchResults = RemindersService.shared.searchReminders(
-                    matching: query,
-                    in: cached
-                )
-            }
-            .store(in: &cancellationTokens)
-    }
-
     @Published var availableCalendars: [EKCalendar] = []
 
     @Published var availableTags: [Tag] = []
@@ -162,42 +142,6 @@ class RemindersData: ObservableObject {
         }
         return calendarSections + tagSections
     }
-
-    @Published var recentReminders: [ReminderItem]?
-
-    @Published var showingRecentReminders: Bool = false {
-        didSet {
-            if showingRecentReminders {
-                showingSearch = false
-                Task {
-                    self.recentReminders = await fetchRecentReminders()
-                }
-            } else {
-                recentReminders = nil
-            }
-        }
-    }
-
-    @Published var showingSearch: Bool = false {
-        didSet {
-            if showingSearch {
-                showingRecentReminders = false
-                Task {
-                    self.searchableReminders = await RemindersService.shared.fetchAllReminders()
-                }
-            } else {
-                searchText = ""
-                searchResults = nil
-                searchableReminders = nil
-            }
-        }
-    }
-
-    @Published var searchText: String = ""
-
-    @Published var searchResults: [ReminderItem]?
-
-    @Published private var searchableReminders: [EKReminder]?
 
     @Published var calendarIdentifiersFilter: [String] = {
         guard let identifiers = UserPreferences.shared.preferredCalendarIdentifiersFilter else {
@@ -244,6 +188,12 @@ class RemindersData: ObservableObject {
     func update() async {
         // Validate filter — remove stale calendars that no longer exist
         let calendars = RemindersService.shared.getCalendars()
+        // EventKit can transiently return zero calendars right after the store
+        // changes/reloads. Don't let that wipe availableCalendars + the filter
+        // (which blanks the UI until the next refresh) — skip this cycle instead.
+        if calendars.isEmpty && !availableCalendars.isEmpty && RemindersService.shared.isAuthorized {
+            return
+        }
         let calendarsSet = Set(calendars.map({ $0.calendarIdentifier }))
         self.availableCalendars = calendars
         self.calendarIdentifiersFilter = self.calendarIdentifiersFilter.filter({ calendarsSet.contains($0) })
@@ -257,20 +207,20 @@ class RemindersData: ObservableObject {
             TagParser.updateShared(with: tags)
         }
 
-        // Fetch reminder data with validated filters
-        self.filteredCalendarReminderLists =
-            await RemindersService.shared.getReminders(of: self.calendarIdentifiersFilter)
-        self.upcomingReminders = await getUpcomingReminders()
-        self.filteredTagReminderLists = await getTagReminders()
+        // Fetch reminder data with validated filters. These are independent
+        // EventKit reads, so run them concurrently rather than serially —
+        // refresh latency becomes the slowest fetch, not the sum of all of them.
+        async let calendarLists = RemindersService.shared.getReminders(of: self.calendarIdentifiersFilter)
+        async let upcoming = getUpcomingReminders()
+        async let tagLists = getTagReminders()
+        async let menuBarCount = getMenuBarCount()
+        async let previewDone: Void = refreshPreview()
 
-        // Update menu bar
-        self.updateMenuBarCount(to: await getMenuBarCount())
-        await self.refreshPreview()
-
-        // Update search data
-        if showingRecentReminders {
-            self.recentReminders = await fetchRecentReminders()
-        }
+        self.filteredCalendarReminderLists = await calendarLists
+        self.upcomingReminders = await upcoming
+        self.filteredTagReminderLists = await tagLists
+        self.updateMenuBarCount(to: await menuBarCount)
+        _ = await previewDone
     }
     
     private func getUpcomingReminders() async -> [ReminderItem] {
@@ -296,10 +246,6 @@ class RemindersData: ObservableObject {
             byTags: self.tagsFilter,
             calendarIdentifiers: calendarFilter
         )
-    }
-
-    private func fetchRecentReminders() async -> [ReminderItem] {
-        return await RemindersService.shared.getRecentReminders()
     }
 
     private func getMenuBarCount() async -> Int {

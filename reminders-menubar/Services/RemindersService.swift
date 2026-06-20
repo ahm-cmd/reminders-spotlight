@@ -91,24 +91,6 @@ class RemindersService {
         return calendarReminderLists
     }
 
-    func getRecentReminders() async -> [ReminderItem] {
-        let recentRemindersDayCount = 90
-        let predicate = eventStore.predicateForReminders(in: nil)
-        let cutoffDate = Calendar.current.date(
-            byAdding: .day,
-            value: -recentRemindersDayCount,
-            to: Date()
-        ) ?? Date.distantPast
-
-        let allReminders = await fetchReminders(matching: predicate)
-        let recentReminders = allReminders
-            .filter { ($0.lastModifiedDate ?? .distantPast) >= cutoffDate }
-
-        return recentReminders
-            .map { ReminderItem(for: $0) }
-            .sorted { ($0.lastModifiedDate ?? .distantPast) > ($1.lastModifiedDate ?? .distantPast) }
-    }
-    
     func getUpcomingReminders(
         _ interval: ReminderInterval,
         for calendarIdentifiers: [String]? = nil
@@ -219,50 +201,6 @@ class RemindersService {
         }
 
         return tagReminderLists
-    }
-
-    func searchReminders(matching query: String, in allReminders: [EKReminder]) -> [ReminderItem] {
-        let queryWords = query
-            .lowercased()
-            .split(separator: " ")
-            .map { (word: String($0), tagWord: $0.hasPrefix("#") ? String($0.dropFirst()) : nil) }
-        guard !queryWords.isEmpty else { return [] }
-
-        let scored: [(ReminderItem, Int)] = allReminders.compactMap { reminder in
-            let title = (reminder.title ?? "").lowercased()
-            let notes = (reminder.notes ?? "").lowercased()
-            let urlString = reminder.attachedUrl?.absoluteString.lowercased() ?? ""
-            var tagNames: [String] = []
-            if #available(macOS 12, *) {
-                tagNames = reminder.ekTags.map({ $0.name.lowercased() })
-            }
-
-            let allFields = [title, notes, urlString] + tagNames
-
-            let allWordsMatch = queryWords.allSatisfy { word, tagWord in
-                if let tagWord, !tagWord.isEmpty,
-                   tagNames.contains(where: { $0.contains(tagWord) }) {
-                    return true
-                }
-                return allFields.contains { $0.contains(word) }
-            }
-            guard allWordsMatch else { return nil }
-
-            var score = 0
-            for (word, tagWord) in queryWords {
-                if title.contains(word) { score += 3 }
-                if notes.contains(word) { score += 2 }
-                if tagNames.contains(where: { $0.contains(tagWord ?? word) }) { score += 2 }
-                if urlString.contains(word) { score += 1 }
-            }
-            if !reminder.isCompleted { score += 1 }
-
-            return (ReminderItem(for: reminder), score)
-        }
-
-        return scored
-            .sorted { $0.1 > $1.1 }
-            .map { $0.0 }
     }
 
     func remove(reminder: EKReminder) {

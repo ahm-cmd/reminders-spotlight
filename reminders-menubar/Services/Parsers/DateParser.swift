@@ -88,7 +88,10 @@ class DateParser {
         }
         
         let hasTime = isTimeSignificant(in: match)
-        let isTimeOnly = isTimeOnlyResult(in: match)
+        // isTimeOnlyResult materializes a private object's debugDescription, which
+        // is costly to run on every keystroke. A time-only result by definition
+        // has a significant time, so skip it entirely when there's no time.
+        let isTimeOnly = hasTime && isTimeOnlyResult(in: match)
         let textDateResult = TextDateResult(
             range: match.range,
             string: textString.substring(in: match.range)
