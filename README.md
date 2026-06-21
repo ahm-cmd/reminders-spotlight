@@ -1,6 +1,10 @@
-# Reminders Spotlight
+<p align="center">
+  <img src="docs/logo.png" alt="Reminders Spotlight" width="128">
+</p>
 
-A Spotlight-style quick-entry app for Apple Reminders on macOS.
+<h1 align="center">Reminders Spotlight</h1>
+
+<p align="center"><em>A Spotlight-style quick-entry app for Apple Reminders on macOS.</em></p>
 
 Press a global shortcut (default **⌥Space**) to drop a centered, Spotlight-like bar onto the screen, type a reminder in plain language, and hit Enter — it parses the date, list, priority, and tags as you type and saves straight to Apple Reminders.
 
