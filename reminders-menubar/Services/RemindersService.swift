@@ -33,7 +33,100 @@ class RemindersService {
     func getCalendar(withIdentifier calendarIdentifier: String) -> EKCalendar? {
         return eventStore.calendar(withIdentifier: calendarIdentifier)
     }
-    
+
+    // MARK: - Calendar events
+
+    var isCalendarAuthorized: Bool {
+        if #available(macOS 14.0, *) {
+            return EKEventStore.authorizationStatus(for: .event) == .fullAccess
+        } else {
+            return EKEventStore.authorizationStatus(for: .event) == .authorized
+        }
+    }
+
+    func requestCalendarAccess(completion: @escaping (Bool, String?) -> Void) {
+        if #available(macOS 14.0, *) {
+            eventStore.requestFullAccessToEvents { granted, error in
+                completion(granted, error?.localizedDescription)
+            }
+        } else {
+            eventStore.requestAccess(to: .event) { granted, error in
+                completion(granted, error?.localizedDescription)
+            }
+        }
+    }
+
+    func getEventCalendars() -> [EKCalendar] {
+        return eventStore.calendars(for: .event).filter { $0.allowsContentModifications }
+    }
+
+    /// All event calendars the user can see (including read-only ones like
+    /// holidays). Used for the agenda's calendar filter.
+    func getAllEventCalendars() -> [EKCalendar] {
+        guard isCalendarAuthorized else { return [] }
+        return eventStore.calendars(for: .event)
+    }
+
+    func getDefaultEventCalendar() -> EKCalendar? {
+        return eventStore.defaultCalendarForNewEvents ?? getEventCalendars().first
+    }
+
+    /// Upcoming events across all calendars for the next `days` days, sorted by
+    /// start. Includes read-only calendars (e.g. holidays) so the list is complete.
+    func getUpcomingEvents(days: Int = 14) -> [EKEvent] {
+        guard isCalendarAuthorized else { return [] }
+        let start = Date()
+        guard let end = Calendar.current.date(byAdding: .day, value: days, to: start) else { return [] }
+        let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: nil)
+        return eventStore.events(matching: predicate).sorted { $0.startDate < $1.startDate }
+    }
+
+    /// Creates a calendar event from the parsed entry. When a time was parsed the
+    /// event runs one hour from that time; otherwise it's an all-day event on the
+    /// parsed (or current) day.
+    @discardableResult
+    func createNewEvent(
+        title: String,
+        date: Date,
+        hasTime: Bool,
+        duration: TimeInterval = 0,
+        recurrence: EKRecurrenceRule? = nil,
+        notes: String? = nil,
+        in calendar: EKCalendar
+    ) -> EKEvent? {
+        let event = EKEvent(eventStore: eventStore)
+        event.title = title
+        event.calendar = calendar
+        event.notes = notes
+        if hasTime {
+            event.startDate = date
+            event.endDate = date.addingTimeInterval(duration > 0 ? duration : 60 * 60)
+            event.isAllDay = false
+        } else {
+            event.startDate = Calendar.current.startOfDay(for: date)
+            event.endDate = event.startDate
+            event.isAllDay = true
+        }
+        if let recurrence {
+            event.recurrenceRules = [recurrence]
+        }
+        do {
+            try eventStore.save(event, span: recurrence != nil ? .futureEvents : .thisEvent, commit: true)
+            return event
+        } catch {
+            print("Failed to save event: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func remove(event: EKEvent) {
+        do {
+            try eventStore.remove(event, span: .thisEvent, commit: true)
+        } catch {
+            print("Failed to remove event: \(error.localizedDescription)")
+        }
+    }
+
     func getCalendars() -> [EKCalendar] {
         return eventStore.calendars(for: .reminder)
     }
@@ -146,11 +239,16 @@ class RemindersService {
         }
     }
     
-    func createNew(with rmbReminder: RmbReminder, in calendar: EKCalendar) {
+    @discardableResult
+    func createNew(with rmbReminder: RmbReminder, in calendar: EKCalendar, recurrence: EKRecurrenceRule? = nil) -> EKReminder {
         let newReminder = EKReminder(eventStore: eventStore)
         newReminder.update(with: rmbReminder)
         newReminder.calendar = calendar
+        if let recurrence {
+            newReminder.recurrenceRules = [recurrence]
+        }
         save(reminder: newReminder, tags: rmbReminder.tags)
+        return newReminder
     }
     
     func fetchAllReminders() async -> [EKReminder] {
@@ -209,5 +307,28 @@ class RemindersService {
         } catch {
             print("Error removing reminder:", error.localizedDescription)
         }
+    }
+}
+
+/// Holds the most recent reversible action (a created item to delete, or a
+/// completed reminder to un-complete) so ⌘Z can undo it. Singleton so it
+/// survives the panel closing and reopening.
+@MainActor
+final class UndoCoordinator {
+    static let shared = UndoCoordinator()
+    private var action: (() -> Void)?
+
+    private init() {}
+
+    var canUndo: Bool { action != nil }
+
+    func register(_ action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    func performUndo() {
+        guard let action else { return }
+        self.action = nil
+        action()
     }
 }

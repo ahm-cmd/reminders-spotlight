@@ -88,11 +88,9 @@ struct RmbReminder {
     var textTagResults: [TagParser.TextTagResult] = []
     
     var highlightedTexts: [RmbHighlightedTextField.HighlightedText] {
-        var texts = [
-            textDateResult.highlightedText,
-            textCalendarResult.highlightedText,
-            textPriorityResult.highlightedText
-        ]
+        var texts = textDateResult.highlightedTexts
+        texts.append(textCalendarResult.highlightedText)
+        texts.append(textPriorityResult.highlightedText)
         texts.append(contentsOf: textTagResults.map({ $0.highlightedText }))
         return texts
     }

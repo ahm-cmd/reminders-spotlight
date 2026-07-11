@@ -7,8 +7,14 @@ struct ToolbarButtonModifier: ViewModifier {
     func body(content: Content) -> some View {
         return content
             .buttonStyle(.borderless)
-            .background((isHovered || isActive) ? Color.rmbColor(.buttonHover) : nil)
-            .cornerRadius(8)
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            // Background is sized to the (fixed 28x28) label, so the highlight
+            // hugs the icon instead of bleeding past it.
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.rmbColor(.buttonHover))
+                    .opacity((isHovered || isActive) ? 1 : 0)
+            )
             .onHover { hovering in
                 isHovered = hovering
             }

@@ -9,6 +9,11 @@ extension Notification.Name {
     /// Posted (throttled) while the main window is open and the mouse moves
     /// anywhere on screen — the cue to expand the list (the "Full UI").
     static let mainWindowDidDetectMouseMove = Notification.Name("mainWindowDidDetectMouseMove")
+    /// Keyboard navigation of the expanded list (↑/↓ and Enter), posted by the
+    /// panel's key monitor and handled by whichever list is showing.
+    static let panelNavigateUp = Notification.Name("panelNavigateUp")
+    static let panelNavigateDown = Notification.Name("panelNavigateDown")
+    static let panelActivateSelection = Notification.Name("panelActivateSelection")
 }
 
 extension NSApplication {

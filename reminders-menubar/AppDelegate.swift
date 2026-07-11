@@ -255,9 +255,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A mouse-down inside our own process. Only the main panel window may dismiss
+    /// the UI, and only when the click lands outside the card. Clicks in any other
+    /// window we own — the edit popover, the date picker's calendar overlay, a
+    /// menu — are interaction with our own UI and must never close the panel.
+    private func localClickFired(in window: NSWindow?) {
+        guard let panel = mainPanel, panel.isVisible, window === panel else { return }
+        outsideClickFired()
+    }
+
     private func dismissIfOutside(_ point: NSPoint) {
         guard let panel = mainPanel, panel.isVisible else { return }
-        if panel.frame.contains(point) { return }
+        // Only the visible card counts as "inside". The window is larger than the
+        // card by chromeInset on every side (transparent shadow + pop-in margin),
+        // so checking panel.frame left a dead zone around the card where clicks
+        // didn't dismiss. Inset to the card's actual bounds.
+        let card = panel.frame.insetBy(dx: SpotlightMetrics.chromeInset, dy: SpotlightMetrics.chromeInset)
+        if card.contains(point) { return }
         if FilterPanelController.shared.containsScreenPoint(point) { return }
         if let statusWindow = statusBarItem.button?.window, statusWindow.frame.contains(point) {
             return
@@ -295,10 +309,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.closeMainWindow() }
         }
 
-        // Dismiss on a click anywhere outside our UI (Spotlight behavior).
-        // Global monitor: clicks in other apps / the desktop. Local monitor:
-        // clicks inside our own process but outside the panel (returns the event
-        // unchanged so normal interaction still works).
+        // Dismiss on a click outside our UI (Spotlight behavior). Global monitor:
+        // clicks in other apps / the desktop. Local monitor: clicks in our own
+        // process — but ONLY the panel window itself can dismiss (and only outside
+        // the card). Clicks in auxiliary windows we own — the edit popover, the
+        // date picker's calendar overlay, menus — are our own UI, not "outside".
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
@@ -307,7 +322,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         localClickMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] event in
-            MainActor.assumeIsolated { self?.outsideClickFired() }
+            MainActor.assumeIsolated { self?.localClickFired(in: event.window) }
             return event
         }
 
@@ -419,12 +434,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let size = panel.frame.size
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
-        guard let visible = screen?.visibleFrame else { return }
-        let x = visible.midX - size.width / 2
-        // Put the CARD's top edge ~18% down from the top of the usable screen —
-        // measured to match Spotlight from a side-by-side. The window extends
-        // chromeInset higher (shadow margin), so offset the window top by it.
-        let cardTopY = visible.maxY - visible.height * 0.18
+        guard let frame = screen?.frame else { return }
+        let x = frame.midX - size.width / 2
+        // Spotlight's gap above the bar is NOT a constant fraction of the screen.
+        // Measured against real Spotlight: 268pt down on a 1080pt-tall display,
+        // 161pt down on a 900pt one. Those two points define the line below — a
+        // single fraction (what we had) fits one display but drifts on the other,
+        // which is why the position broke when the display changed. Clamp keeps
+        // unusual sizes sane. Measured from the FULL screen frame so the menu bar
+        // / Dock can't skew it per-display.
+        let h = frame.height
+        let gap = min(max(0.5944 * h - 374, h * 0.12), h * 0.30)
+        let cardTopY = frame.maxY - gap
         let y = (cardTopY + SpotlightMetrics.chromeInset) - size.height
         panel.setFrameOrigin(NSPoint(x: x.rounded(), y: y.rounded()))
     }

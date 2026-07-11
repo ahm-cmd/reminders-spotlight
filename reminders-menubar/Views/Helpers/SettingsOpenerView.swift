@@ -23,7 +23,8 @@ struct SettingsOpenerView: View {
     private func handleOpenSettingsRequest() async {
         // If settings window is already open, just bring it to front.
         if let existingWindow = settingsWindow, existingWindow.isVisible {
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
+            existingWindow.makeKeyAndOrderFront(nil)
             existingWindow.orderFrontRegardless()
             return
         }
@@ -75,8 +76,11 @@ struct SettingsOpenerView: View {
 
         if let window {
             settingsWindow = window
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
+            // Force the window above other apps' windows — plain activate()/
+            // makeKeyAndOrderFront leave it behind the previously-active app.
+            window.orderFrontRegardless()
 
             // Clean settingsWindow state and restore accessory policy when the settings window closes.
             observeSettingsClose(window, wasAccessory: wasAccessory)

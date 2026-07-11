@@ -45,12 +45,12 @@ struct SpotlightRoot<Content: View>: View {
                         .opacity(value.opacity)
                 } keyframes: { _ in
                     KeyframeTrack(\.scale) {
-                        CubicKeyframe(0.97, duration: 0.20)   // 1.04 → 0.97 (dip)
-                        SpringKeyframe(1.0, duration: 0.22, spring: .init(response: 0.24, dampingRatio: 0.6))
+                        CubicKeyframe(0.97, duration: 0.13)   // 1.04 → 0.97 (dip)
+                        SpringKeyframe(1.0, duration: 0.15, spring: .init(response: 0.18, dampingRatio: 0.6))
                     }
                     KeyframeTrack(\.opacity) {
-                        LinearKeyframe(1.0, duration: 0.15)
-                        LinearKeyframe(1.0, duration: 0.27)
+                        LinearKeyframe(1.0, duration: 0.10)
+                        LinearKeyframe(1.0, duration: 0.18)
                     }
                 }
                 .onAppear { animate = true }
@@ -60,7 +60,7 @@ struct SpotlightRoot<Content: View>: View {
                 .scaleEffect(animate ? 1.0 : 0.96, anchor: .top)
                 .opacity(animate ? 1 : 0)
                 .onAppear {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.62)) { animate = true }
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.62)) { animate = true }
                 }
         }
     }

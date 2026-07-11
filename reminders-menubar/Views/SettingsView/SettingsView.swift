@@ -46,7 +46,7 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.keyboard)
 
-            ListShortcutsSettingsTab()
+            ShortcutsSettingsTab()
                 .tabItem {
                     Label(String("Shortcuts"), systemImage: "at")
                 }
@@ -66,11 +66,37 @@ struct SettingsView: View {
     SettingsView()
 }
 
+// MARK: - Shortcuts
+
+/// Holds three sections: `@` shortcuts that route a reminder to a list, `#`
+/// shortcuts that expand a short key into a full tag, and `@` shortcuts that
+/// route a calendar event to a calendar.
+struct ShortcutsSettingsTab: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                ListShortcutsSection()
+                Divider()
+                TagShortcutsSection()
+                Divider()
+                CalendarShortcutsSection()
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        // A definite height: a height-less ScrollView has no intrinsic size, so the
+        // Settings window kept whatever height the previous tab had (the list was
+        // clipped/invisible when arriving from a short tab). Content beyond this
+        // scrolls.
+        .frame(maxWidth: .infinity, minHeight: 540, maxHeight: 540)
+    }
+}
+
 // MARK: - List Shortcuts
 
 /// Lets the user define `@` shortcuts (e.g. "@p" → Personal) that, when typed
 /// in the reminder field, are stripped from the text and assign that list.
-struct ListShortcutsSettingsTab: View {
+struct ListShortcutsSection: View {
     @State private var entries: [ShortcutEntry] = []
     @State private var calendars: [EKCalendar] = []
     @State private var saveWork: DispatchWorkItem?
@@ -93,17 +119,12 @@ struct ListShortcutsSettingsTab: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if calendars.isEmpty {
-                Spacer()
                 Text(String("No reminder lists available."))
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                Spacer()
             } else {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach($entries) { $entry in
-                            shortcutRow($entry)
-                        }
+                VStack(spacing: 8) {
+                    ForEach($entries) { $entry in
+                        shortcutRow($entry)
                     }
                 }
 
@@ -114,11 +135,8 @@ struct ListShortcutsSettingsTab: View {
                 }
                 .buttonStyle(.borderless)
             }
-
-            Spacer(minLength: 0)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             calendars = RemindersService.shared.getCalendars()
             load()
@@ -188,5 +206,238 @@ struct ListShortcutsSettingsTab: View {
         // a full RemindersData.update() (5 EventKit fetches). The entry field
         // parses via CalendarParser, which reads this map.
         CalendarParser.updateShared(with: RemindersService.shared.getCalendars())
+    }
+}
+
+// MARK: - Tag Shortcuts
+
+/// Lets the user define `#` shortcuts (e.g. "#wp" → "work-project") that, when
+/// typed in the reminder field, expand to the full tag and tag the reminder.
+struct TagShortcutsSection: View {
+    @State private var entries: [TagShortcutEntry] = []
+    @State private var saveWork: DispatchWorkItem?
+
+    struct TagShortcutEntry: Identifiable, Equatable {
+        let id = UUID()
+        var key: String
+        var tag: String
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(String("Tag Shortcuts"))
+                .font(.headline)
+
+            Text(String("Type a shortcut like “#wp” in the reminder field. It expands to the full "
+                + "tag (e.g. “work-project”) and tags the reminder."))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 8) {
+                ForEach($entries) { $entry in
+                    shortcutRow($entry)
+                }
+            }
+
+            Button {
+                entries.append(TagShortcutEntry(key: "", tag: ""))
+            } label: {
+                Label(String("Add Shortcut"), systemImage: "plus")
+            }
+            .buttonStyle(.borderless)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { load() }
+        .onChange(of: entries) { _ in scheduleSave() }
+    }
+
+    private func shortcutRow(_ entry: Binding<TagShortcutEntry>) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 1) {
+                Text(String("#")).foregroundStyle(.secondary)
+                TextField(String("key"), text: entry.key)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+            }
+
+            Image(systemName: "arrow.right")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 1) {
+                Text(String("#")).foregroundStyle(.secondary)
+                TextField(String("tag"), text: entry.tag)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 160)
+            }
+
+            Spacer()
+
+            Button {
+                entries.removeAll { $0.id == entry.wrappedValue.id }
+            } label: {
+                Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(String("Remove shortcut"))
+        }
+    }
+
+    private func load() {
+        entries = UserPreferences.shared.tagShortcuts
+            .map { TagShortcutEntry(key: $0.key, tag: $0.value) }
+            .sorted { $0.key < $1.key }
+    }
+
+    private func scheduleSave() {
+        saveWork?.cancel()
+        let work = DispatchWorkItem { save() }
+        saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+    }
+
+    private func save() {
+        var dict: [String: String] = [:]
+        for entry in entries {
+            let key = TagParser.sanitizedTagName(entry.key).lowercased()
+            let tag = TagParser.sanitizedTagName(entry.tag)
+            guard !key.isEmpty, !tag.isEmpty else { continue }
+            dict[key] = tag
+        }
+        UserPreferences.shared.tagShortcuts = dict
+        // Only the shortcut map changed — rebuild just the tag parser's map.
+        TagParser.updateShortcuts()
+    }
+}
+
+// MARK: - Calendar Shortcuts
+
+/// Lets the user define `@` shortcuts (e.g. "@w" → Work) that, when typed while
+/// adding a calendar event, are stripped from the text and route the event to
+/// the chosen calendar. The event-mode analog of List Shortcuts.
+struct CalendarShortcutsSection: View {
+    @State private var entries: [ShortcutEntry] = []
+    @State private var calendars: [EKCalendar] = []
+    @State private var saveWork: DispatchWorkItem?
+
+    struct ShortcutEntry: Identifiable, Equatable {
+        let id = UUID()
+        var key: String
+        var calendarId: String
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(String("Calendar Shortcuts"))
+                .font(.headline)
+
+            Text(String("Type a shortcut like “@w” while adding a calendar event (Calendar mode). "
+                + "It’s removed from the text and the event is added to the chosen calendar."))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !RemindersService.shared.isCalendarAuthorized {
+                Button(String("Allow Calendar Access…")) {
+                    requestAccess()
+                }
+                .buttonStyle(.borderless)
+            } else if calendars.isEmpty {
+                Text(String("No calendars available."))
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach($entries) { $entry in
+                        shortcutRow($entry)
+                    }
+                }
+
+                Button {
+                    entries.append(ShortcutEntry(key: "", calendarId: calendars.first?.calendarIdentifier ?? ""))
+                } label: {
+                    Label(String("Add Shortcut"), systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            if RemindersService.shared.isCalendarAuthorized {
+                calendars = RemindersService.shared.getAllEventCalendars()
+            }
+            load()
+        }
+        .onChange(of: entries) { _ in scheduleSave() }
+    }
+
+    private func shortcutRow(_ entry: Binding<ShortcutEntry>) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 1) {
+                Text(String("@")).foregroundStyle(.secondary)
+                TextField(String("key"), text: entry.key)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+            }
+
+            Image(systemName: "arrow.right")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Picker(String(""), selection: entry.calendarId) {
+                ForEach(calendars, id: \.calendarIdentifier) { calendar in
+                    Text(calendar.title).tag(calendar.calendarIdentifier)
+                }
+            }
+            .labelsHidden()
+
+            Spacer()
+
+            Button {
+                entries.removeAll { $0.id == entry.wrappedValue.id }
+            } label: {
+                Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(String("Remove shortcut"))
+        }
+    }
+
+    private func requestAccess() {
+        RemindersService.shared.requestCalendarAccess { granted, _ in
+            DispatchQueue.main.async {
+                if granted {
+                    calendars = RemindersService.shared.getAllEventCalendars()
+                    load()
+                }
+            }
+        }
+    }
+
+    private func load() {
+        entries = UserPreferences.shared.eventCalendarShortcuts
+            .map { ShortcutEntry(key: $0.key, calendarId: $0.value) }
+            .sorted { $0.key < $1.key }
+    }
+
+    private func scheduleSave() {
+        saveWork?.cancel()
+        let work = DispatchWorkItem { save() }
+        saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+    }
+
+    private func save() {
+        var dict: [String: String] = [:]
+        for entry in entries {
+            let key = entry.key
+                .trimmingCharacters(in: .whitespaces)
+                .replacingOccurrences(of: "@", with: "")
+                .lowercased()
+            guard !key.isEmpty, !entry.calendarId.isEmpty else { continue }
+            dict[key] = entry.calendarId
+        }
+        UserPreferences.shared.eventCalendarShortcuts = dict
+        EventCalendarParser.updateShared(with: RemindersService.shared.getAllEventCalendars())
     }
 }

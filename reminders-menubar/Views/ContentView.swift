@@ -4,7 +4,18 @@ import EventKit
 struct ContentView: View {
     @EnvironmentObject var remindersData: RemindersData
     @ObservedObject var userPreferences = UserPreferences.shared
+    @Binding var scrolledDown: Bool
     @State private var appHasPopoverOpen = false
+    @State private var selectedIndex = 0   // keyboard selection over flatReminders
+
+    /// Flat, ordered reminders across the visible list sections (keyboard nav).
+    private var flatReminders: [ReminderItem] {
+        remindersData.orderedFilteredSections.flatMap { $0.reminders }
+    }
+
+    private var selectedReminder: ReminderItem? {
+        flatReminders.indices.contains(selectedIndex) ? flatReminders[selectedIndex] : nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,6 +28,30 @@ struct ContentView: View {
             }
         }
         .environment(\.appHasPopoverOpen, $appHasPopoverOpen)
+        .onReceive(NotificationCenter.default.publisher(for: .panelNavigateUp)) { _ in moveSelection(-1) }
+        .onReceive(NotificationCenter.default.publisher(for: .panelNavigateDown)) { _ in moveSelection(1) }
+        .onReceive(NotificationCenter.default.publisher(for: .panelActivateSelection)) { _ in completeSelected() }
+    }
+
+    private func moveSelection(_ delta: Int) {
+        guard !flatReminders.isEmpty else { return }
+        selectedIndex = min(max(selectedIndex + delta, 0), flatReminders.count - 1)
+    }
+
+    private func completeSelected() {
+        guard let item = selectedReminder, !item.reminder.isCompleted else { return }
+        item.reminder.isCompleted = true
+        SoundService.shared.playCompleteChime()
+        RemindersService.shared.save(reminder: item.reminder)
+
+        let completed = item.reminder
+        UndoCoordinator.shared.register {
+            completed.isCompleted = false
+            RemindersService.shared.save(reminder: completed)
+            NotificationCenter.default.post(name: .remindersDataShouldUpdate, object: nil)
+        }
+        remindersData.optimisticallyRemove(reminderItem: item)
+        selectedIndex = min(selectedIndex, max(flatReminders.count - 1, 0))
     }
 
     // MARK: - Content subviews
@@ -27,45 +62,57 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var filteredRemindersContent: some View {
-        List {
-            if userPreferences.showUpcomingReminders {
-                Section(header: CalendarTitle(
-                    title: userPreferences.upcomingRemindersInterval.sectionTitle,
-                    color: .rmbColor(.upcomingSectionTitle),
-                    icon: {
-                        if userPreferences.filterUpcomingRemindersByCalendar {
-                            Image(rmbSymbol: .filterCircle)
-                                .help(rmbLocalized(.upcomingRemindersFilterByCalendarEnabledHelp))
+        ScrollViewReader { proxy in
+            List {
+                if userPreferences.showUpcomingReminders {
+                    Section(header: CalendarTitle(
+                        title: userPreferences.upcomingRemindersInterval.sectionTitle,
+                        color: .rmbColor(.upcomingSectionTitle),
+                        icon: {
+                            if userPreferences.filterUpcomingRemindersByCalendar {
+                                Image(rmbSymbol: .filterCircle)
+                                    .help(rmbLocalized(.upcomingRemindersFilterByCalendarEnabledHelp))
+                            }
                         }
+                    )) {
+                        UpcomingRemindersContent()
                     }
-                )) {
-                    UpcomingRemindersContent()
+                    .modifier(ListSectionModifier())
                 }
-                .modifier(ListSectionModifier())
-            }
 
-            ForEach(remindersData.orderedFilteredSections) { section in
-                Section(header: CalendarTitle(
-                    title: section.title,
-                    color: section.color,
-                    icon: {
-                        if case .tag = section, userPreferences.filterTagRemindersByCalendar {
-                            Image(rmbSymbol: .filterCircle)
-                                .help(rmbLocalized(.tagRemindersFilterByCalendarEnabledHelp))
+                ForEach(remindersData.orderedFilteredSections) { section in
+                    Section(header: CalendarTitle(
+                        title: section.title,
+                        color: section.color,
+                        icon: {
+                            if case .tag = section, userPreferences.filterTagRemindersByCalendar {
+                                Image(rmbSymbol: .filterCircle)
+                                    .help(rmbLocalized(.tagRemindersFilterByCalendarEnabledHelp))
+                            }
+                        }
+                    )) {
+                        if section.reminders.isEmpty {
+                            NoReminderItemsView(emptyList: .allItemsCompleted)
+                        }
+                        ForEach(section.reminders) { reminderItem in
+                            ReminderItemView(
+                                reminderItem: reminderItem,
+                                isKeyboardSelected: reminderItem.id == selectedReminder?.id
+                            )
+                            .id(reminderItem.id)
                         }
                     }
-                )) {
-                    if section.reminders.isEmpty {
-                        NoReminderItemsView(emptyList: .allItemsCompleted)
-                    }
-                    ForEach(section.reminders) { reminderItem in
-                        ReminderItemView(reminderItem: reminderItem)
-                    }
+                    .modifier(ListSectionModifier())
                 }
-                .modifier(ListSectionModifier())
+            }
+            .modifier(ReminderListModifier(animationValue: remindersData.orderedFilteredSections))
+            .modifier(ScrollDownReporter(scrolledDown: $scrolledDown))
+            .onChange(of: selectedIndex) { _ in
+                if let id = selectedReminder?.id {
+                    withAnimation { proxy.scrollTo(id, anchor: .center) }
+                }
             }
         }
-        .modifier(ReminderListModifier(animationValue: remindersData.orderedFilteredSections))
     }
 
     @ViewBuilder private var noFilterContent: some View {
@@ -84,7 +131,25 @@ struct ReminderListModifier<V: Equatable>: ViewModifier {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .animation(.default, value: animationValue)
+            .padding(.top, 12)      // breathing room above the first date heading
             .padding(.bottom, 10)
+    }
+}
+
+/// Reports whether the reminders list has been scrolled down from the top, so
+/// the floating filter/settings buttons can fade out and stop overlapping the
+/// entries beneath them. No-op before macOS 15 (buttons simply stay put).
+struct ScrollDownReporter: ViewModifier {
+    @Binding var scrolledDown: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y > 8 } action: { _, isDown in
+                if isDown != scrolledDown { scrolledDown = isDown }
+            }
+        } else {
+            content
+        }
     }
 }
 
@@ -103,6 +168,6 @@ struct ListSectionModifier: ViewModifier {
 }
 
 #Preview {
-    ContentView()
+    ContentView(scrolledDown: .constant(false))
         .environmentObject(RemindersData())
 }

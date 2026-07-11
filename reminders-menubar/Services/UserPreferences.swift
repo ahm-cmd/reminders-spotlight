@@ -6,6 +6,9 @@ private enum PreferencesKeys {
     static let calendarIdentifiersFilter = "calendarIdentifiersFilter"
     static let calendarIdentifierForSaving = "calendarIdentifierForSaving"
     static let listShortcuts = "listShortcuts"
+    static let tagShortcuts = "tagShortcuts"
+    static let eventCalendarShortcuts = "eventCalendarShortcuts"
+    static let hiddenEventCalendarIdentifiers = "hiddenEventCalendarIdentifiers"
     static let autoSuggestTodayForNewReminders = "autoSuggestTodayForNewReminders"
     static let removeParsedDateFromTitle = "removeParsedDateFromTitle"
     static let rmbColorScheme = "rmbColorScheme"
@@ -122,7 +125,39 @@ class UserPreferences: ObservableObject {
             UserPreferences.defaults.set(newValue, forKey: PreferencesKeys.listShortcuts)
         }
     }
-    
+
+    /// User-defined tag shortcuts: a short key (typed as `#key`) → the full tag
+    /// name it expands to. Mirrors `listShortcuts` for the `@` list shortcuts.
+    var tagShortcuts: [String: String] {
+        get {
+            return UserPreferences.defaults.dictionary(forKey: PreferencesKeys.tagShortcuts) as? [String: String] ?? [:]
+        }
+        set {
+            UserPreferences.defaults.set(newValue, forKey: PreferencesKeys.tagShortcuts)
+        }
+    }
+
+    /// User-defined calendar shortcuts: a short key (typed as `@key` in event
+    /// mode) → the event-calendar identifier the event should be created in.
+    /// Mirrors `listShortcuts`, but for calendar events instead of reminder lists.
+    var eventCalendarShortcuts: [String: String] {
+        get {
+            return UserPreferences.defaults.dictionary(forKey: PreferencesKeys.eventCalendarShortcuts) as? [String: String] ?? [:]
+        }
+        set {
+            UserPreferences.defaults.set(newValue, forKey: PreferencesKeys.eventCalendarShortcuts)
+        }
+    }
+
+    /// Event calendars hidden from the Calendar agenda (by identifier).
+    @Published var hiddenEventCalendarIdentifiers: [String] = {
+        return defaults.stringArray(forKey: PreferencesKeys.hiddenEventCalendarIdentifiers) ?? []
+    }() {
+        didSet {
+            UserPreferences.defaults.set(hiddenEventCalendarIdentifiers, forKey: PreferencesKeys.hiddenEventCalendarIdentifiers)
+        }
+    }
+
     @Published var autoSuggestToday: Bool = {
         return defaults.bool(forKey: PreferencesKeys.autoSuggestTodayForNewReminders)
     }() {

@@ -46,8 +46,10 @@ struct ReminderCompleteButton: View {
             reminderItem.reminder.isCompleted = false
             RemindersService.shared.save(reminder: reminderItem.reminder)
         } else if userPreferences.completionAnimationEnabled {
+            SoundService.shared.playCompleteChime()   // play on tap, not after the grace delay
             startPendingCompletion()
         } else {
+            SoundService.shared.playCompleteChime()
             completeReminder()
             remindersData.optimisticallyRemove(reminderItem: reminderItem)
         }
@@ -87,12 +89,27 @@ struct ReminderCompleteButton: View {
     }
 
     private func completeReminder() {
+        // The chime is played on tap (see handleButtonTap), not here, so it's
+        // immediate rather than after the completion grace delay.
         childrenCompletedByTask = reminderItem.childReminders.filter { !$0.reminder.isCompleted }
         reminderItem.reminder.isCompleted = true
         RemindersService.shared.save(reminder: reminderItem.reminder)
         childrenCompletedByTask.forEach { child in
             child.reminder.isCompleted = true
             RemindersService.shared.save(reminder: child.reminder)
+        }
+
+        // ⌘Z un-completes it (and any children completed alongside).
+        let completed = reminderItem.reminder
+        let completedChildren = childrenCompletedByTask
+        UndoCoordinator.shared.register {
+            completed.isCompleted = false
+            RemindersService.shared.save(reminder: completed)
+            completedChildren.forEach { child in
+                child.reminder.isCompleted = false
+                RemindersService.shared.save(reminder: child.reminder)
+            }
+            NotificationCenter.default.post(name: .remindersDataShouldUpdate, object: nil)
         }
     }
 }

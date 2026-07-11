@@ -19,17 +19,21 @@ enum MainPopoverSizing {
 /// content bounds, which clips them to 90° for the first frames of the
 /// animation (the "popping in inside a rectangle" artifact).
 enum SpotlightMetrics {
-    /// The visible card width — macOS Spotlight's field width.
-    static let cardWidth: CGFloat = 680
-    /// The entry-bar height — Spotlight's search-field height.
-    static let fieldRowHeight: CGFloat = 64
+    /// The visible card width — macOS Spotlight's field width (measured 640pt
+    /// against Spotlight on a 1080p screen).
+    static let cardWidth: CGFloat = 640
+    /// The entry-bar height — Spotlight's search-field height (measured 56pt).
+    static let fieldRowHeight: CGFloat = 56
     static let chipsRowHeight: CGFloat = 36
     static let listCardHeight: CGFloat = 420
     static let cardGap: CGFloat = 8
-    /// Spotlight's continuous corner radius (measured ~18pt from a side-by-side).
-    static let cornerRadius: CGFloat = 18
+    /// Spotlight's corner radius ≈ half the bar height — the single-row bar
+    /// reads as a capsule.
+    static let cornerRadius: CGFloat = 28
     /// Transparent margin around the card (shadow + pop-in overshoot room).
-    static let chromeInset: CGFloat = 28
+    /// Must exceed the drop shadow's full reach, or the shadow clips to a hard
+    /// line at the window edge.
+    static let chromeInset: CGFloat = 50
 
     /// Full window width = card + margin on both sides.
     static var windowWidth: CGFloat { cardWidth + chromeInset * 2 }

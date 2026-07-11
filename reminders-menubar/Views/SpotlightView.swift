@@ -1,6 +1,7 @@
 import SwiftUI
 import EventKit
 import Combine
+import AppKit
 
 /// The Spotlight-style root: a clean focused search-style bar, plus — on hover —
 /// a separate "bubbled-off" card below it listing the reminders.
@@ -15,11 +16,24 @@ struct SpotlightView: View {
     @State private var expandWork: DispatchWorkItem?
     @State private var growStartedAt: Date?
     @State private var didCreate = false   // entry morphs into the checkmark
+    @State private var createdColor: Color = .green   // checkmark tint = destination list/calendar
     @State private var dismissing = false  // whole panel bubbles off after
     @State private var listShown = true    // list card visible (opacity) vs faded out
     @State private var collapsing = false  // a typing-collapse is in flight
-    @FocusState private var fieldFocused: Bool
+    @State private var eventMode = false   // create a calendar event instead of a reminder
+    @State private var eventCalendars: [EKCalendar] = []
+    @State private var chosenEventCalendar: EKCalendar?
+    @State private var modeSwapFromAbove = false  // drives the mode-swap animation direction
+    @State private var keyMonitor: Any?           // local ↑/↓ monitor for mode switching
+    @State private var focusTrigger = UUID()   // bump to focus the entry field
+    @State private var hintIndex = 0           // rotating placeholder example
+    @State private var showNotes = false       // notes section reserves window space
+    @State private var notesMounted = false    // notes editor is present
+    @State private var notesWork: DispatchWorkItem?
+    @State private var notesFocusTrigger = UUID()
+    @State private var listScrolled = false    // fades the list's filter/cog once scrolled
 
+    private let notesHeight: CGFloat = 104
     private let cardCornerRadius = SpotlightMetrics.cornerRadius
     private let fieldRowHeight = SpotlightMetrics.fieldRowHeight
     private let chipsRowHeight = SpotlightMetrics.chipsRowHeight
@@ -40,6 +54,9 @@ struct SpotlightView: View {
             return fieldRowHeight + cardGap + listCardHeight + chromeInset * 2
         }
         let bar = fieldRowHeight + (rmbReminder.title.isEmpty ? 0 : chipsRowHeight)
+        if showNotes {
+            return bar + cardGap + notesHeight + chromeInset * 2
+        }
         return bar + chromeInset * 2
     }
 
@@ -54,6 +71,9 @@ struct SpotlightView: View {
                     // reflows). The transition handles the reveal-in.
                     .opacity(listShown ? 1 : 0)
                     .transition(.offset(y: -8).combined(with: .opacity))
+            } else if notesMounted {
+                notesCard
+                    .transition(.offset(y: -8).combined(with: .opacity))
             }
         }
         .opacity(dismissing ? 0 : 1)   // bubble-off fade after a reminder is saved
@@ -62,20 +82,41 @@ struct SpotlightView: View {
         // window being chromeInset taller than the content (top-aligned).
         .padding(.horizontal, chromeInset)
         .padding(.top, chromeInset)
-        .frame(maxWidth: .infinity, alignment: .top)
+        // Fill the window and pin to the top, so the space below the card is always
+        // the full chrome inset — room for the drop shadow. (Without maxHeight the
+        // shorter content gets centered and the shadow is clipped at the bottom.)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .preferredColorScheme(userPreferences.rmbColorScheme.colorScheme)
         .contentShape(Rectangle())
         .onAppear {
             rmbReminder.calendar = remindersData.calendarForSaving
+            // Rebuild the parser shortcut maps from the current calendars +
+            // preferences every time the bar opens, so "@" list shortcuts and "#"
+            // tag shortcuts are always recognized — even ones pointing at the list
+            // that's already selected, and regardless of when the data model last
+            // refreshed.
+            CalendarParser.updateShared(with: RemindersService.shared.getCalendars())
+            TagParser.updateShortcuts()
+            EventCalendarParser.updateShared(with: RemindersService.shared.getAllEventCalendars())
             if userPreferences.autoSuggestToday {
                 rmbReminder.setIsAutoSuggestingTodayForCreation()
             }
-            DispatchQueue.main.async { fieldFocused = true }
+            DispatchQueue.main.async { focusTrigger = UUID() }
             syncHeight()
+            installModeKeyMonitor()
+        }
+        .onDisappear {
+            if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+            keyMonitor = nil
         }
         // Moving the mouse (anywhere) means you want to browse → show the list.
         .onReceive(NotificationCenter.default.publisher(for: .mainWindowDidDetectMouseMove)) { _ in
-            if !expanded { expand() }
+            // Composing notes suppresses the ambient browse-on-mouse-move (option a).
+            if !expanded && !showNotes { expand() }
+        }
+        // Quietly rotate the placeholder examples while the field sits empty.
+        .onReceive(Timer.publish(every: 2.5, on: .main, in: .common).autoconnect()) { _ in
+            advanceHint()
         }
         // Typing means you're committing to writing → reverse the list back out.
         .onChange(of: rmbReminder.title) { _ in
@@ -89,8 +130,11 @@ struct SpotlightView: View {
         .onChange(of: rmbReminder.title.isEmpty) { _ in
             if !expanded { syncHeight() }
         }
+        .onChange(of: showNotes) { _ in syncHeight() }
         .onExitCommand {
-            if expanded { collapse() } else { AppDelegate.shared.closeMainWindow() }
+            // Esc always closes the whole UI (the key monitor handles it while the
+            // field is focused; this covers the rest).
+            AppDelegate.shared.closeMainWindow()
         }
     }
 
@@ -99,25 +143,40 @@ struct SpotlightView: View {
     private var barCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(.secondary)
+                modeIcon
 
-                TextField(String("Set a Reminder"), text: $rmbReminder.title)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 26, weight: .regular))
-                    .focused($fieldFocused)
+                ZStack(alignment: .leading) {
+                    // Custom placeholder so it can animate. It quietly rotates
+                    // through example phrasings to teach the syntax (passive
+                    // discoverability), and cross-fades on mode/example change.
+                    if rmbReminder.title.isEmpty {
+                        Text(currentPlaceholder)
+                            .font(.system(size: 24, weight: .regular))
+                            .foregroundStyle(Color.primary.opacity(0.7))   // Spotlight's placeholder gray
+                            .lineLimit(1)
+                            .id(placeholderID)
+                            .transition(placeholderTransition)
+                            .allowsHitTesting(false)
+                    }
+
+                    // AppKit-backed field so parsed tokens can be colored inline.
+                    // Placeholder stays empty here — the animated SwiftUI overlay
+                    // above handles it.
+                    RmbHighlightedTextField(
+                        placeholder: "",
+                        text: $rmbReminder.title,
+                        highlightedTexts: fieldHighlights,
+                        maximumNumberOfLines: 1,
+                        focusTrigger: $focusTrigger
+                    )
+                    .nsFont(.systemFont(ofSize: 24, weight: .regular))
+                    .caretColor(destinationCaretColor)   // caret follows the destination
+                    .singleLine()
                     .onSubmit(create)
-
-                Button { expanded ? collapse() : expand() } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(expanded ? 180 : 0))
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .buttonStyle(.plain)
+                // No trailing control — Spotlight has none. Mouse-move and ⌘↓
+                // open the list; Esc / ⌘↓ / typing collapse it.
             }
             .padding(.horizontal, 20)
             .frame(height: fieldRowHeight)
@@ -129,12 +188,39 @@ struct SpotlightView: View {
                 HStack(spacing: 6) {
                     if rmbReminder.hasDueDate {
                         chip("calendar", rmbReminder.date.relativeDateDescription(withTime: rmbReminder.hasTime), .accentColor)
+                            .transition(chipTransition)
                     }
-                    listPickerChip
+                    if eventMode {
+                        // Priority, tags and reminder-lists don't apply to events.
+                        eventCalendarChip
+                            .transition(chipTransition)
+                    } else {
+                        listPickerChip
+                            .transition(chipTransition)
+                        if rmbReminder.priority != .none {
+                            chip(rmbReminder.priority.rmbSymbol?.name ?? "exclamationmark",
+                                 rmbReminder.priority.title,
+                                 priorityChipColor(rmbReminder.priority))
+                                .transition(chipTransition)
+                        }
+                        ForEach(rmbReminder.textTagResults.indices, id: \.self) { index in
+                            chip(RmbSymbol.hashtag.name, rmbReminder.textTagResults[index].tag.name, .rmbColor(.tagHighlight))
+                                .transition(chipTransition)
+                        }
+                    }
+                    // Recurrence applies to both reminders and events.
+                    if let recurrence = recurrenceMatch {
+                        chip("repeat", recurrence.label, .orange)
+                            .transition(chipTransition)
+                    }
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 20)
                 .frame(height: chipsRowHeight, alignment: .top)
+                // Spring chips in/out as tokens are parsed. Keyed on the chip *set*
+                // so it fires only when a chip appears/disappears, not on every
+                // keystroke that merely changes a chip's text.
+                .animation(.spring(response: 0.32, dampingFraction: 0.8), value: chipSignature)
             }
         }
         // On save the entry collapses toward the center (where the checkmark
@@ -147,11 +233,11 @@ struct SpotlightView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 36, weight: .semibold))
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .green)
+                    .foregroundStyle(.white, createdColor)
                     // Blooms in from a point; then on dismiss keeps growing as the
                     // whole panel fades — the "bubble off".
                     .scaleEffect(dismissing ? 1.3 : 1.0)
-                    .transition(.scale(scale: 0.2).combined(with: .opacity))
+                    .transition(.scale(scale: 0.45).combined(with: .opacity))
             }
         }
     }
@@ -159,17 +245,57 @@ struct SpotlightView: View {
     // MARK: - List card
 
     private var listCard: some View {
-        ContentView()
-            .overlay(alignment: .topTrailing) {
-                HStack(spacing: 2) {
-                    FilterReminderListButton()
-                    OpenSettingButton()
-                }
-                .padding(.trailing, 12)
-                .padding(.top, 6)
+        Group {
+            if eventMode {
+                UpcomingEventsView()
+            } else {
+                ContentView(scrolledDown: $listScrolled)
+                    .overlay(alignment: .topTrailing) {
+                        HStack(spacing: 2) {
+                            FilterReminderListButton()
+                            OpenSettingButton()
+                        }
+                        // Trailing inset clears the list's scroll bar; top inset keeps
+                        // the icons in line with the first section heading.
+                        .padding(.trailing, 20)
+                        .padding(.top, 16)
+                        // Fade out once the list is scrolled, so they don't sit over
+                        // the entries scrolling underneath.
+                        .opacity(listScrolled ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.18), value: listScrolled)
+                    }
             }
-            .frame(height: listCardHeight)
-            .background(cardSurface)
+        }
+        .frame(height: listCardHeight)
+        // Clip the scrolling content (and its scroll bar) to the rounded card so
+        // nothing pokes past the corners. The shadow lives on cardSurface behind
+        // this, so it stays unclipped.
+        .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
+        .background(cardSurface)
+    }
+
+    // MARK: - Notes card
+
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { rmbReminder.notes ?? "" },
+            set: { rmbReminder.notes = $0.isEmpty ? nil : $0 }
+        )
+    }
+
+    private var notesCard: some View {
+        RmbHighlightedTextField(
+            placeholder: String("Notes"),
+            text: notesBinding,
+            maximumNumberOfLines: 4,
+            allowNewLineAndTab: true,
+            focusTrigger: $notesFocusTrigger
+        )
+        .nsFont(.systemFont(ofSize: 14))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(height: notesHeight)
+        .background(cardSurface)
     }
 
     /// Frosted, rounded, hairline-bordered surface — Spotlight's panel look.
@@ -181,12 +307,207 @@ struct SpotlightView: View {
         let shape = RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
         return VisualEffectBlur()
             .clipShape(shape)
-            .overlay(shape.strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.22), radius: 16, x: 0, y: 6)
+            // One fine hairline defines the edge…
+            .overlay(shape.strokeBorder(Color.primary.opacity(0.3), lineWidth: 0.75))
+            // …and behind it a single soft, diffuse shadow — no tight dark band
+            // hugging the edge. Diffuse enough to feel like Spotlight's, but small
+            // enough to fade fully inside the chrome margin so it never clips.
+            .shadow(color: .black.opacity(0.14), radius: 16, x: 0, y: 3)
+    }
+
+    /// The leading glyph is the mode switcher: a Reminders-style checkbox
+    /// (default) or a calendar for a new event. Click to switch (mouse), or use
+    /// the ↑/↓ arrows (keyboard) — see the key monitor in onAppear. The icon swaps
+    /// with a small vertical slide + fade in the arrow's direction.
+    ///
+    /// Both symbols are rounded squares of matching footprint, so neither leans
+    /// left/right relative to the other when swapping (a wide symbol like
+    /// `checklist` extends further left and reads as a sideways shift).
+    private var modeIcon: some View {
+        Button {
+            // Clicking flips to the other mode; animate as if it came from the
+            // direction it's moving toward (event below, reminder above).
+            switchMode(toEvent: !eventMode, fromAbove: eventMode)
+        } label: {
+            ZStack {
+                Image(systemName: eventMode ? "calendar" : "checkmark.square")
+                    .font(.system(size: 23, weight: .regular))   // matches Spotlight's leading-glyph weight/size
+                    .foregroundStyle(Color.primary.opacity(0.7))
+                    .frame(width: 26, height: 26, alignment: .center)
+                    .id(eventMode)
+                    .transition(modeSwapTransition)
+            }
+            .frame(width: 26, height: 28)
+            .clipped()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(eventMode ? String("New calendar event — ↑/↓ or click to switch")
+                        : String("New reminder — ↑/↓ or click to switch"))
+    }
+
+    /// Vertical slide + fade used when swapping between Reminder and Event. The
+    /// direction follows `modeSwapFromAbove` so it tracks the ↑/↓ key pressed.
+    private var modeSwapTransition: AnyTransition {
+        let offset: CGFloat = 7
+        return .asymmetric(
+            insertion: .offset(y: modeSwapFromAbove ? -offset : offset).combined(with: .opacity),
+            removal: .offset(y: modeSwapFromAbove ? offset : -offset).combined(with: .opacity)
+        )
+    }
+
+    // MARK: - Rotating placeholder
+
+    /// Example phrasings the empty placeholder cycles through — index 0 is the
+    /// plain prompt, the rest demonstrate one capability each.
+    private var placeholderExamples: [String] {
+        eventMode
+            ? ["Create Event", "Create Event tomorrow 12–1pm", "Create Event every weekday", "Create Event @work"]
+            : ["Create Reminder", "Create Reminder tomorrow at 4", "Create Reminder every month", "Create Reminder !!", "Create Reminder @personal"]
+    }
+
+    private var currentPlaceholder: String {
+        let examples = placeholderExamples
+        return examples[hintIndex % examples.count]
+    }
+
+    private var placeholderID: String { "\(eventMode)-\(hintIndex)" }
+
+    /// Gentle vertical "ticker" — the new line rises in as the old rises out.
+    private var placeholderTransition: AnyTransition {
+        .asymmetric(
+            insertion: .offset(y: 9).combined(with: .opacity),
+            removal: .offset(y: -9).combined(with: .opacity)
+        )
+    }
+
+    private func advanceHint() {
+        guard rmbReminder.title.isEmpty, !expanded else { return }
+        withAnimation(.easeInOut(duration: 0.45)) {
+            hintIndex += 1
+        }
+    }
+
+    private func handleArrowKey(up: Bool) {
+        // Either arrow toggles between the two modes; the arrow only sets the
+        // animation direction.
+        switchMode(toEvent: !eventMode, fromAbove: up)
+    }
+
+    private func performUndo() {
+        UndoCoordinator.shared.performUndo()
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+    }
+
+    private func switchMode(toEvent: Bool, fromAbove: Bool) {
+        guard toEvent != eventMode else { return }
+        modeSwapFromAbove = fromAbove
+        let apply = {
+            hintIndex = 0   // show the new mode's base prompt first
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+                eventMode = toEvent
+            }
+            if toEvent {
+                ensureCalendarAccess()
+            }
+        }
+        if expanded {
+            // Collapse the open list first; swapping the card's contents (reminders
+            // list ⇄ events list) while a List is mounted can trip the resize crash.
+            // Re-expanding then shows the new mode's content.
+            collapse(then: apply)
+        } else {
+            apply()
+        }
+    }
+
+    /// Watches for ↑/↓ while the Spotlight panel is focused and uses them to swap
+    /// between Reminder and Event mode. Scoped to the FloatingPanel so it never
+    /// eats arrow keys in Settings or other windows.
+    private func installModeKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.window is FloatingPanel else { return event }
+            // While a reminder title is being edited inline in the list, let its
+            // field handle every key (Return commits, arrows move the caret) instead
+            // of the panel's browse shortcuts.
+            if InlineTitleEditState.shared.isEditing { return event }
+            // Esc → close the whole UI (one press), even when the text view would
+            // otherwise swallow it.
+            if event.keyCode == 53 {
+                AppDelegate.shared.closeMainWindow()
+                return nil
+            }
+            // ⌘Z → undo the last save/completion. Only when not mid-typing (empty
+            // field or browsing), so it doesn't clobber the field's own text-undo.
+            if event.modifierFlags.contains(.command), event.keyCode == 6 {
+                if (rmbReminder.title.isEmpty || expanded), UndoCoordinator.shared.canUndo {
+                    performUndo()
+                    return nil
+                }
+                return event
+            }
+            // ⌘↩ → save and keep the bar open for the next entry (multi-add).
+            if event.modifierFlags.contains(.command),
+               event.keyCode == 36 || event.keyCode == 76 {
+                createAndContinue()
+                return nil
+            }
+            // ⌘↓ → toggle the browse list (keyboard equivalent of mouse-move).
+            if event.modifierFlags.contains(.command), event.keyCode == 125 {
+                toggleList()
+                return nil
+            }
+            // ⇥ Tab → toggle the notes section (compose detail).
+            if event.keyCode == 48 {
+                toggleNotes()
+                return nil
+            }
+            if expanded {
+                // Browsing: ↑/↓ move the list selection, ↩ activates it.
+                switch event.keyCode {
+                case 126: NotificationCenter.default.post(name: .panelNavigateUp, object: nil); return nil
+                case 125: NotificationCenter.default.post(name: .panelNavigateDown, object: nil); return nil
+                case 36, 76: NotificationCenter.default.post(name: .panelActivateSelection, object: nil); return nil
+                default: return event
+                }
+            } else if showNotes {
+                // Composing notes: let the notes editor handle ↑/↓/↩ (multi-line).
+                return event
+            } else {
+                // Typing: ↑/↓ switch reminder ⇄ event mode (↩ falls through to save).
+                if event.keyCode == 125 || event.keyCode == 126 {
+                    handleArrowKey(up: event.keyCode == 126)
+                    return nil
+                }
+            }
+            return event
+        }
+    }
+
+    private func ensureCalendarAccess() {
+        if RemindersService.shared.isCalendarAuthorized {
+            loadEventCalendars()
+        } else {
+            RemindersService.shared.requestCalendarAccess { granted, _ in
+                DispatchQueue.main.async {
+                    if granted {
+                        loadEventCalendars()
+                    } else {
+                        // No Calendar access — fall back to reminder mode.
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+                            eventMode = false
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private var listPickerChip: some View {
-        Menu {
+        let calendar = parsedOrChosenCalendar
+        let tint = calendar.map { Color($0.color) } ?? .secondary
+        return Menu {
             ForEach(remindersData.availableCalendars, id: \.calendarIdentifier) { calendar in
                 Button(calendar.title) {
                     rmbReminder.calendar = calendar
@@ -194,14 +515,106 @@ struct SpotlightView: View {
                 }
             }
         } label: {
-            let calendar = parsedOrChosenCalendar
-            chip("line.3.horizontal", calendar?.title ?? "List", calendar.map { Color($0.color) } ?? .secondary)
+            chipLabel("line.3.horizontal", calendar?.title ?? "List", tint)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+        .modifier(ColoredChipBackground(tint: tint))
+    }
+
+    private var eventCalendarChip: some View {
+        let calendar = effectiveEventCalendar
+        let tint = calendar.map { Color($0.color) } ?? .secondary
+        return Menu {
+            ForEach(eventCalendars, id: \.calendarIdentifier) { calendar in
+                Button(calendar.title) { chosenEventCalendar = calendar }
+            }
+        } label: {
+            chipLabel("calendar", calendar?.title ?? "Calendar", tint)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .modifier(ColoredChipBackground(tint: tint))
+    }
+
+    private func loadEventCalendars() {
+        eventCalendars = RemindersService.shared.getEventCalendars()
+        let stillValid = eventCalendars.contains { $0.calendarIdentifier == chosenEventCalendar?.calendarIdentifier }
+        if !stillValid {
+            chosenEventCalendar = RemindersService.shared.getDefaultEventCalendar()
+        }
+    }
+
+    /// A `@key` calendar shortcut parsed from the title (event mode only).
+    private var eventShortcutMatch: EventCalendarParser.Match? {
+        guard eventMode else { return nil }
+        return EventCalendarParser.match(in: rmbReminder.title)
+    }
+
+    /// Calendar a new event lands in: a typed `@` shortcut wins, then the
+    /// manually-chosen calendar, then the system default.
+    private var effectiveEventCalendar: EKCalendar? {
+        eventShortcutMatch?.calendar ?? chosenEventCalendar ?? RemindersService.shared.getDefaultEventCalendar()
+    }
+
+    /// An "every …" recurrence parsed from the title — applies to both reminders
+    /// and events.
+    private var recurrenceMatch: RecurrenceParser.Match? {
+        RecurrenceParser.match(in: rmbReminder.title)
+    }
+
+    /// The destination list/calendar's color (as NSColor) — tints the caret so the
+    /// bar subtly reflects where the entry is headed.
+    private var destinationCaretColor: NSColor {
+        let calendar = eventMode ? effectiveEventCalendar : parsedOrChosenCalendar
+        return calendar?.color ?? .controlAccentColor
+    }
+
+    /// Token highlights colored inline in the field. In event mode the relevant
+    /// tokens are the date, the "@" calendar shortcut (in that calendar's color),
+    /// and the "every …" recurrence; reminder mode uses the model's own set
+    /// (date / list / priority / tags).
+    private var fieldHighlights: [RmbHighlightedTextField.HighlightedText] {
+        var highlights: [RmbHighlightedTextField.HighlightedText]
+        if eventMode {
+            highlights = rmbReminder.textDateResult.highlightedTexts
+            if let shortcut = eventShortcutMatch {
+                let color = shortcut.calendar.color ?? .secondaryLabelColor
+                highlights.append(.init(range: shortcut.range, color: color))
+            }
+        } else {
+            highlights = rmbReminder.highlightedTexts
+        }
+        // Recurrence applies in both modes.
+        if let recurrence = recurrenceMatch {
+            for range in recurrence.ranges {
+                highlights.append(.init(range: range, color: .systemOrange))
+            }
+        }
+        return highlights
+    }
+
+    /// Pop chips in/out from a slightly shrunk, faded state.
+    private var chipTransition: AnyTransition {
+        .scale(scale: 0.55).combined(with: .opacity)
+    }
+
+    /// Changes only when the *set* of chips changes (a chip added/removed or a
+    /// priority level change), so the spring fires then rather than on every
+    /// keystroke. See the chips row's `.animation(value:)`.
+    private var chipSignature: String {
+        "\(eventMode)|\(rmbReminder.hasDueDate)|\(rmbReminder.priority.rawValue)|\(rmbReminder.textTagResults.count)|\(recurrenceMatch != nil)"
     }
 
     private func chip(_ icon: String, _ text: String, _ tint: Color) -> some View {
+        chipLabel(icon, text, tint)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint.opacity(0.14)))
+    }
+
+    /// The chip's icon + text only (no background). Used directly as a Menu label
+    /// so the colored squircle can be applied to the Menu itself — the borderless
+    /// menu style otherwise swallows a background set on its label.
+    private func chipLabel(_ icon: String, _ text: String, _ tint: Color) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
             Text(text).lineLimit(1)
@@ -210,7 +623,19 @@ struct SpotlightView: View {
         .foregroundStyle(tint)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint.opacity(0.14)))
+    }
+
+    private func priorityChipColor(_ priority: EKReminderPriority) -> Color {
+        switch priority {
+        case .high:
+            return .red
+        case .medium:
+            return .orange
+        case .low:
+            return Color(.systemYellow)
+        default:
+            return .secondary
+        }
     }
 
     // MARK: - Expand / collapse
@@ -226,10 +651,59 @@ struct SpotlightView: View {
         guard !expanded else { return }
         collapseWork?.cancel()
         collapsing = false
+        listScrolled = false   // a freshly opened list starts at the top
         listShown = true
         growStartedAt = Date()
         withAnimation(.easeOut(duration: 0.11)) { expanded = true }
         scheduleListReveal()
+    }
+
+    // MARK: - Notes (compose detail) — mutually exclusive with the browse list.
+
+    /// Tab. Browse → compose: collapse the list first, then open notes.
+    private func toggleNotes() {
+        if showNotes {
+            closeNotes()
+        } else if expanded {
+            collapse(then: { openNotes() })
+        } else {
+            openNotes()
+        }
+    }
+
+    /// ⌘↓. Compose → browse: close notes first; otherwise toggle the list.
+    private func toggleList() {
+        if expanded {
+            collapse()
+        } else if showNotes {
+            closeNotes()
+        } else {
+            expand()
+        }
+    }
+
+    private func openNotes() {
+        showNotes = true   // reserve space (window grows first, via onChange → syncHeight)
+        notesWork?.cancel()
+        // Mount the editor only AFTER the window has grown — mounting an AppKit
+        // text view mid-resize is exactly what crashed the old cheat sheet.
+        let work = DispatchWorkItem {
+            withAnimation(.easeOut(duration: 0.14)) { notesMounted = true }
+            notesFocusTrigger = UUID()
+        }
+        notesWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
+    }
+
+    private func closeNotes() {
+        notesWork?.cancel()
+        // Unmount the editor BEFORE the window shrinks (syncHeight is async, so it
+        // lands after this render commits the unmount).
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { notesMounted = false }
+        showNotes = false
+        focusTrigger = UUID()   // focus back to the title
     }
 
     /// Mounts the list once the window has finished growing. Safe to call
@@ -249,7 +723,7 @@ struct SpotlightView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + remaining, execute: work)
     }
 
-    private func collapse() {
+    private func collapse(then completion: (() -> Void)? = nil) {
         expandWork?.cancel()
         guard expanded, !collapsing else { return }   // ignore re-fires (rapid typing)
         collapsing = true
@@ -269,6 +743,9 @@ struct SpotlightView: View {
             }
             withAnimation(.easeOut(duration: 0.18)) { expanded = false }
             collapsing = false
+            // The list is fully unmounted here — safe for callers to swap the
+            // card's contents (e.g. switch reminder ⇄ event mode).
+            completion?()
         }
 
         // Phase 1: fade the list out IN PLACE — compositor-only (opacity), list
@@ -292,27 +769,94 @@ struct SpotlightView: View {
     // MARK: - Create (mirrors ReminderEditView's save)
 
     private func create() {
-        let title = finalTitle()
-        guard !title.isEmpty, let calendar = parsedOrChosenCalendar else { return }
+        guard canSaveCurrentEntry else { return }
 
-        // Begin the morph FIRST: rewriting rmbReminder.title below would otherwise
-        // trip the typing→collapse handler, and didCreate guards it.
-        fieldFocused = false
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.62)) { didCreate = true }
+        // The success checkmark blooms in the destination's color — capture it now,
+        // before the save path can reset the entry.
+        createdColor = Color(nsColor: destinationCaretColor)
 
-        rmbReminder.prepareToSave()
-        rmbReminder.title = title
-        rmbReminder.calendar = calendar
-        RemindersService.shared.createNew(with: rmbReminder, in: calendar)
-        remindersData.calendarForSaving = calendar
+        // Begin the morph FIRST: rewriting rmbReminder.title in the save path would
+        // otherwise trip the typing→collapse handler, and didCreate guards it.
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.74)) { didCreate = true }
+
+        saveCurrentEntry()
 
         // Linger on the checkmark a beat, then the panel bubbles off.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
-            withAnimation(.easeIn(duration: 0.22)) { dismissing = true }
+            withAnimation(.easeInOut(duration: 0.24)) { dismissing = true }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.74) {
             AppDelegate.shared.closeMainWindow()
         }
+    }
+
+    /// ⌘↩ — save the current entry and keep the bar open, cleared, for the next
+    /// one (multi-add).
+    private func createAndContinue() {
+        guard canSaveCurrentEntry else { return }
+        saveCurrentEntry()
+        resetForNextEntry()
+    }
+
+    private var canSaveCurrentEntry: Bool {
+        guard !finalTitle().isEmpty else { return false }
+        if eventMode {
+            return RemindersService.shared.isCalendarAuthorized && effectiveEventCalendar != nil
+        }
+        return parsedOrChosenCalendar != nil
+    }
+
+    /// Writes the current entry to Reminders or Calendar (no animation / dismiss).
+    private func saveCurrentEntry() {
+        let title = finalTitle()
+        if eventMode {
+            guard let calendar = effectiveEventCalendar else { return }
+            // Best-effort duration from a parsed range ("12–1pm"); recurrence from
+            // "every …". Priority/tags are parsed too but don't apply to events.
+            let duration = DateParser.shared.getDate(from: rmbReminder.title)?.duration ?? 0
+            let created = RemindersService.shared.createNewEvent(
+                title: title,
+                date: rmbReminder.date,
+                hasTime: rmbReminder.hasTime,
+                duration: duration,
+                recurrence: recurrenceMatch?.rule,
+                notes: rmbReminder.notes,
+                in: calendar
+            )
+            if let created {
+                UndoCoordinator.shared.register {
+                    RemindersService.shared.remove(event: created)
+                }
+            }
+        } else {
+            guard let calendar = parsedOrChosenCalendar else { return }
+            // A repeating reminder needs a due date to anchor the recurrence.
+            if recurrenceMatch != nil && !rmbReminder.hasDueDate {
+                rmbReminder.hasDueDate = true
+            }
+            rmbReminder.prepareToSave()
+            rmbReminder.title = title
+            rmbReminder.calendar = calendar
+            let created = RemindersService.shared.createNew(with: rmbReminder, in: calendar, recurrence: recurrenceMatch?.rule)
+            remindersData.calendarForSaving = calendar
+            UndoCoordinator.shared.register {
+                RemindersService.shared.remove(reminder: created)
+                NotificationCenter.default.post(name: .remindersDataShouldUpdate, object: nil)
+            }
+        }
+        SoundService.shared.playSuccessFeedback()
+    }
+
+    private func resetForNextEntry() {
+        notesWork?.cancel()
+        notesMounted = false
+        showNotes = false
+        rmbReminder = RmbReminder()
+        rmbReminder.calendar = remindersData.calendarForSaving
+        if userPreferences.autoSuggestToday {
+            rmbReminder.setIsAutoSuggestingTodayForCreation()
+        }
+        DispatchQueue.main.async { focusTrigger = UUID() }
     }
 
     private func finalTitle() -> String {
@@ -321,12 +865,271 @@ struct SpotlightView: View {
             title.replaceSubrange(priorityRange, with: "")
         }
         if userPreferences.removeParsedDateFromTitle {
-            title = title.replacingOccurrences(of: rmbReminder.textDateResult.string, with: "")
+            for dateString in rmbReminder.textDateResult.strings {
+                title = title.replacingOccurrences(of: dateString, with: "")
+            }
         }
         title = title.replacingOccurrences(of: rmbReminder.textCalendarResult.string, with: "")
         for tagResult in rmbReminder.textTagResults.sorted(by: { $0.string.count > $1.string.count }) {
             title = title.replacingOccurrences(of: tagResult.string, with: "")
         }
+        // In event mode, also strip the parsed "@" calendar-shortcut token and any
+        // "every …" recurrence phrase (neither is a reminder-list token, so the
+        // line above won't have removed them).
+        if let eventToken = eventShortcutMatch?.string {
+            title = title.replacingOccurrences(of: eventToken, with: "")
+        }
+        if let recurrence = recurrenceMatch {
+            for token in recurrence.strings {
+                title = title.replacingOccurrences(of: token, with: "")
+            }
+        }
         return title.trimmingCharacters(in: .whitespaces)
+    }
+}
+
+// MARK: - Upcoming events list (Calendar mode)
+
+/// The expanded card in Calendar mode: upcoming events grouped by day, each
+/// color-coded by its calendar.
+private struct UpcomingEventsView: View {
+    @ObservedObject private var userPreferences = UserPreferences.shared
+    @State private var allEvents: [EKEvent] = []
+    @State private var eventCalendars: [EKCalendar] = []
+    @State private var selectedIndex = 0   // keyboard selection
+
+    /// Events minus any calendars the user has hidden via the filter.
+    private var events: [EKEvent] {
+        let hidden = Set(userPreferences.hiddenEventCalendarIdentifiers)
+        guard !hidden.isEmpty else { return allEvents }
+        return allEvents.filter { event in
+            guard let id = event.calendar?.calendarIdentifier else { return true }
+            return !hidden.contains(id)
+        }
+    }
+
+    private var selectedEvent: EKEvent? {
+        events.indices.contains(selectedIndex) ? events[selectedIndex] : nil
+    }
+
+    private var groupedByDay: [(day: Date, events: [EKEvent])] {
+        let byDay = Dictionary(grouping: events) { Calendar.current.startOfDay(for: $0.startDate) }
+        return byDay.keys.sorted().map { (day: $0, events: byDay[$0] ?? []) }
+    }
+
+    var body: some View {
+        content
+            // Float the filter + cog in line with the first day heading (matching
+            // the Reminders view), inset from the right so the scroll bar doesn't
+            // overlap them.
+            .overlay(alignment: .topTrailing) {
+                HStack(spacing: 2) {
+                    EventCalendarFilterButton(calendars: eventCalendars)
+                        .disabled(eventCalendars.isEmpty)
+                    OpenSettingButton()
+                }
+                .padding(.trailing, 20)
+                .padding(.top, 6)
+            }
+            .onAppear {
+                allEvents = RemindersService.shared.getUpcomingEvents()
+                eventCalendars = RemindersService.shared.getAllEventCalendars()
+                selectedIndex = 0
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .panelNavigateUp)) { _ in
+                moveSelection(-1)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .panelNavigateDown)) { _ in
+                moveSelection(1)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .panelActivateSelection)) { _ in
+                if let event = selectedEvent { openInCalendar(event) }
+            }
+    }
+
+    private func moveSelection(_ delta: Int) {
+        guard !events.isEmpty else { return }
+        selectedIndex = min(max(selectedIndex + delta, 0), events.count - 1)
+    }
+
+    @ViewBuilder private var content: some View {
+        if events.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(.tertiary)
+                Text(String("No upcoming events"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Same List + CalendarTitle section headers as the Reminders view, so
+            // the date headings match and the floating toolbar clears the rows the
+            // same way it does there.
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(groupedByDay, id: \.day) { group in
+                        Section(
+                            header: CalendarTitle(title: dayLabel(group.day), color: .rmbColor(.upcomingSectionTitle))
+                        ) {
+                            ForEach(group.events, id: \.self) { event in
+                                eventRow(event, isSelected: event === selectedEvent)
+                                    .id(event)
+                            }
+                        }
+                        .modifier(ListSectionModifier())
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .padding(.bottom, 10)
+                .onChange(of: selectedIndex) { _ in
+                    if let event = selectedEvent {
+                        withAnimation { proxy.scrollTo(event, anchor: .center) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func eventRow(_ event: EKEvent, isSelected: Bool) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(color(for: event))
+                .frame(width: 3)
+                .frame(maxHeight: .infinity)   // stretch to the row's full height
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(event.title ?? String("(No Title)"))
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(timeLabel(event))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let location = trimmed(event.location) {
+                    Label(location, systemImage: "mappin.and.ellipse")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let calendarTitle = event.calendar?.title {
+                    Text(calendarTitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let notes = trimmed(event.notes) {
+                    Text(notes)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.accentColor.opacity(isSelected ? 0.16 : 0))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { openInCalendar(event) }
+        .help(String("Double-click to open in Calendar"))
+    }
+
+    /// Trimmed non-empty string, or nil.
+    private func trimmed(_ string: String?) -> String? {
+        guard let value = string?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+
+    /// Opens the system Calendar app focused on this event, then dismisses the bar.
+    private func openInCalendar(_ event: EKEvent) {
+        if let url = URL(string: "ical://ekevent/\(event.calendarItemIdentifier)?method=show&options=more") {
+            NSWorkspace.shared.open(url)
+        }
+        AppDelegate.shared.closeMainWindow()
+    }
+
+    private func color(for event: EKEvent) -> Color {
+        if let cgColor = event.calendar?.color {
+            return Color(cgColor)
+        }
+        return .gray
+    }
+
+    private func timeLabel(_ event: EKEvent) -> String {
+        if event.isAllDay { return String("All day") }
+        return event.startDate.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func dayLabel(_ day: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return String("Today") }
+        if calendar.isDateInTomorrow(day) { return String("Tomorrow") }
+        return day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+}
+
+// MARK: - Calendar filter (Calendar mode)
+
+/// Filter-circle toolbar button whose menu toggles which calendars appear in the
+/// agenda. Highlighted while any calendar is hidden.
+private struct EventCalendarFilterButton: View {
+    @ObservedObject private var userPreferences = UserPreferences.shared
+    let calendars: [EKCalendar]
+
+    var body: some View {
+        Menu {
+            ForEach(calendars, id: \.calendarIdentifier) { calendar in
+                Toggle(calendar.title, isOn: binding(for: calendar))
+            }
+        } label: {
+            ToolbarButtonLabel {
+                Image(rmbSymbol: .filterCircle)
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .modifier(ToolbarButtonModifier(isActive: !userPreferences.hiddenEventCalendarIdentifiers.isEmpty))
+        .help(String("Filter calendars"))
+    }
+
+    private func binding(for calendar: EKCalendar) -> Binding<Bool> {
+        Binding(
+            get: { !userPreferences.hiddenEventCalendarIdentifiers.contains(calendar.calendarIdentifier) },
+            set: { shown in
+                if shown {
+                    userPreferences.hiddenEventCalendarIdentifiers.removeAll { $0 == calendar.calendarIdentifier }
+                } else if !userPreferences.hiddenEventCalendarIdentifiers.contains(calendar.calendarIdentifier) {
+                    userPreferences.hiddenEventCalendarIdentifiers.append(calendar.calendarIdentifier)
+                }
+            }
+        )
+    }
+}
+
+/// Soft colored squircle behind the list / calendar preview chips — applied to
+/// the Menu itself so the borderless menu style can't drop it. Just a gentle
+/// fill (no hard outline), matching the other chips' softness.
+private struct ColoredChipBackground: ViewModifier {
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(tint.opacity(0.18))
+            )
     }
 }

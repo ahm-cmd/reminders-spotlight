@@ -19,6 +19,9 @@ class TagParser {
 
     private var knownTags: [Tag] = []
 
+    // User-defined tag shortcuts: lowercased key (typed as "#key") → full tag name.
+    private var shortcutTagsByKey: [String: String] = [:]
+
     static private let validInitialChars: Set<String?> = ["#"]
 
     static let shared = TagParser()
@@ -29,6 +32,19 @@ class TagParser {
 
     static func updateShared(with tags: [Tag]) {
         TagParser.shared.knownTags = tags
+        updateShortcuts()
+    }
+
+    /// Rebuilds the shortcut map from the user's preferences. Safe to call on its
+    /// own (e.g. after editing shortcuts in Settings) without re-fetching tags.
+    static func updateShortcuts() {
+        TagParser.shared.shortcutTagsByKey = UserPreferences.shared.tagShortcuts
+            .reduce(into: [String: String]()) { result, pair in
+                let tag = sanitizedTagName(pair.value)
+                let key = sanitizedTagName(pair.key).lowercased()
+                guard !tag.isEmpty, !key.isEmpty else { return }
+                result[key] = tag
+            }
     }
 
     static func resolvedTagName(_ tagName: String) -> String {
@@ -68,7 +84,10 @@ class TagParser {
                 continue
             }
 
-            let tagName = resolvedTagName(sanitized)
+            // A user-defined shortcut (e.g. "#wp" → "work-project") wins over the
+            // literal tag, mirroring how "@" list shortcuts behave.
+            let expanded = TagParser.shared.shortcutTagsByKey[sanitized.lowercased()] ?? sanitized
+            let tagName = resolvedTagName(expanded)
             let range = NSRange(word.startIndex..<word.endIndex, in: textString)
             results.append(TextTagResult(range: range, string: String(word), tag: Tag(tagName)))
         }

@@ -2,6 +2,15 @@ import SwiftUI
 import EventKit
 import Combine
 
+/// Set while a reminder title is being edited inline in the list, so the panel's
+/// global key monitor knows to leave Return / arrow keys to the text field.
+@MainActor
+final class InlineTitleEditState {
+    static let shared = InlineTitleEditState()
+    var isEditing = false
+    private init() {}
+}
+
 @MainActor
 struct ReminderItemView: View {
     @EnvironmentObject private var copyCoordinator: CopyShortcutCoordinator
@@ -10,6 +19,7 @@ struct ReminderItemView: View {
 
     var reminderItem: ReminderItem
     var showCalendarTitle = false
+    var isKeyboardSelected = false
 
     @State private var reminderItemIsHovered = false
     @State private var showingEditPopover = false
@@ -19,6 +29,9 @@ struct ReminderItemView: View {
     @State private var dateInvalidation = Date()
     @State private var dueDateExpirationCancellable: AnyCancellable?
     @State private var copiedToastDismissWork: DispatchWorkItem?
+    @State private var isEditingTitle = false
+    @State private var editedTitle = ""
+    @FocusState private var titleFieldFocused: Bool
 
     var body: some View {
         if reminderItem.reminder.calendar == nil {
@@ -47,6 +60,17 @@ struct ReminderItemView: View {
 
             VStack(spacing: 4) {
                 reminderTitleRow()
+
+                if let notes = reminderItem.reminder.notes?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !notes.isEmpty {
+                    Text(notes)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.trailing, 8)
+                }
 
                 if #available(macOS 12, *), !tagNames.isEmpty {
                     ReminderTagsView(tagNames: tagNames)
@@ -103,7 +127,7 @@ struct ReminderItemView: View {
             .animation(.easeInOut(duration: 0.15), value: isPendingCompletion)
             .allowsHitTesting(!isPendingCompletion && !appHasPopoverOpen.wrappedValue)
             .onTapGesture {
-                showingEditPopover = true
+                if !isEditingTitle { showingEditPopover = true }
             }
         }
         .onHover { isHovered in
@@ -120,7 +144,15 @@ struct ReminderItemView: View {
             copiedToastDismissWork?.cancel()
             showingCopiedToast = false
             copyCoordinator.clearIfCurrent(reminderId: reminderItem.id)
+            if isEditingTitle { InlineTitleEditState.shared.isEditing = false }
         }
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.accentColor.opacity(isKeyboardSelected ? 0.12 : 0))
+                // Extend past the row so the highlight doesn't line up flush with
+                // the leading edge of the complete-circle.
+                .padding(.horizontal, -6)
+        )
         .padding(.bottom, 2)
         .padding(.leading, reminderItem.isChild ? 22 : 0)
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
@@ -167,16 +199,49 @@ struct ReminderItemView: View {
     @ViewBuilder
     private func reminderTitleRow() -> some View {
         ZStack(alignment: .topTrailing) {
-            reminderTitleText()
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 22)
+            if isEditingTitle {
+                // Edit the title in place: single-click swaps the label for a field,
+                // Return / clicking away commits.
+                TextField("", text: $editedTitle)
+                    .textFieldStyle(.plain)
+                    .focused($titleFieldFocused)
+                    .onSubmit { commitTitleEdit() }
+                    .onChange(of: titleFieldFocused) { focused in
+                        if !focused { commitTitleEdit() }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 22)
+            } else {
+                reminderTitleText()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 22)
+                    .contentShape(Rectangle())
+                    .onTapGesture { beginTitleEdit() }
+            }
 
             trailingIndicator()
         }
         .alert(isPresented: $showingRemoveAlert) {
             removeReminderAlert(for: reminderItem.reminder)
         }
+    }
+
+    private func beginTitleEdit() {
+        editedTitle = reminderItem.reminder.title
+        isEditingTitle = true
+        InlineTitleEditState.shared.isEditing = true
+        DispatchQueue.main.async { titleFieldFocused = true }
+    }
+
+    private func commitTitleEdit() {
+        guard isEditingTitle else { return }
+        isEditingTitle = false
+        InlineTitleEditState.shared.isEditing = false
+        let trimmed = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != reminderItem.reminder.title else { return }
+        reminderItem.reminder.title = trimmed
+        RemindersService.shared.save(reminder: reminderItem.reminder)
     }
 
     @ViewBuilder

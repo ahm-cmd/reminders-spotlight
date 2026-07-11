@@ -15,6 +15,8 @@ struct RmbHighlightedTextField: NSViewRepresentable {
     var focusTrigger: Binding<UUID>?
 
     private var textFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    private var caretColor: NSColor?
+    private var singleLine = false
     private var onSubmit: (() -> Void)?
     private var isInitialCharValidToAutoComplete: ((_ initialChar: String?) -> Bool)?
     private var autoCompleteSuggestions: ((_ initialChar: String?, _ typingWord: String) -> [String])?
@@ -51,6 +53,46 @@ struct RmbHighlightedTextField: NSViewRepresentable {
         textView.backgroundColor = .clear
         textView.font = textFont
         textView.delegate = context.coordinator
+        if let caretColor {
+            textView.insertionPointColor = caretColor
+        }
+
+        if singleLine {
+            // One line, no wrapping (long text scrolls horizontally), and text
+            // pinned to the left edge so it lines up with an external placeholder.
+            scrollView.drawsBackground = false
+            scrollView.borderType = .noBorder
+            scrollView.hasVerticalScroller = false
+            scrollView.hasHorizontalScroller = false
+            scrollView.verticalScrollElasticity = .none
+            textView.isHorizontallyResizable = true
+            textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            textView.textContainerInset = .zero
+            if let container = textView.textContainer {
+                container.widthTracksTextView = false
+                container.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+                container.lineFragmentPadding = 0
+                container.maximumNumberOfLines = 1
+            }
+        } else {
+            // Multi-line: use an overlay, auto-hiding scroller so a track isn't
+            // parked in the field before there's anything to scroll.
+            scrollView.hasVerticalScroller = true
+            scrollView.autohidesScrollers = true
+            scrollView.scrollerStyle = .overlay
+
+            if textContainerDynamicHeight == nil {
+                // Fixed-height scrolling box (the notes card). Match the app's
+                // chrome — transparent + borderless — and give the text room top
+                // and bottom so the last line isn't flush against the edge (which
+                // read as being cut off when scrolled).
+                scrollView.drawsBackground = false
+                scrollView.borderType = .noBorder
+                scrollView.verticalScrollElasticity = .none
+                textView.textContainerInset = NSSize(width: 4, height: 6)
+                textView.textContainer?.lineFragmentPadding = 0
+            }
+        }
 
         return scrollView
     }
@@ -61,6 +103,19 @@ struct RmbHighlightedTextField: NSViewRepresentable {
         }
 
         context.coordinator.parent = self
+
+        if let caretColor {
+            textView.insertionPointColor = caretColor
+        }
+
+        if singleLine, let layoutManager = textView.layoutManager {
+            // Center the single line vertically within the field's height.
+            let lineHeight = layoutManager.defaultLineHeight(for: textFont)
+            let inset = max(0, (nsView.bounds.height - lineHeight) / 2)
+            if abs(textView.textContainerInset.height - inset) > 0.5 {
+                textView.textContainerInset = NSSize(width: 0, height: inset)
+            }
+        }
 
         let selectedRange = textView.selectedRange()
         let updatedText = text.wrappedValue
@@ -266,6 +321,24 @@ extension RmbHighlightedTextField {
         view.textFont = .preferredFont(forTextStyle: fontStyle)
         return view
     }
+
+    func nsFont(_ font: NSFont) -> RmbHighlightedTextField {
+        var view = self
+        view.textFont = font
+        return view
+    }
+
+    func caretColor(_ color: NSColor?) -> RmbHighlightedTextField {
+        var view = self
+        view.caretColor = color
+        return view
+    }
+
+    func singleLine(_ enabled: Bool = true) -> RmbHighlightedTextField {
+        var view = self
+        view.singleLine = enabled
+        return view
+    }
 }
 
 private class PlaceholderNSTextView: NSTextView {
@@ -273,15 +346,21 @@ private class PlaceholderNSTextView: NSTextView {
     var shouldFocus: Bool = false
 
     override func draw(_ rect: CGRect) {
-        if string.isEmpty && !placeholder.isEmpty {
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: font ?? .systemFont(ofSize: NSFont.systemFontSize),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-
-            placeholder.draw(in: rect.insetBy(dx: 4, dy: 0), withAttributes: attributes)
-        }
         super.draw(rect)
+        guard string.isEmpty, !placeholder.isEmpty else { return }
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font ?? .systemFont(ofSize: NSFont.systemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ]
+        // Draw once at the same origin the text/caret uses (container inset +
+        // line-fragment padding), in the view's own coordinates. Drawing into the
+        // passed-in dirty `rect` instead left a copy of the placeholder at every
+        // scroll offset (the "duplicated Notes" artifact) and misplaced it.
+        let padding = textContainer?.lineFragmentPadding ?? 0
+        let origin = CGPoint(x: textContainerInset.width + padding,
+                             y: textContainerInset.height)
+        placeholder.draw(at: origin, withAttributes: attributes)
     }
 
     override func viewDidMoveToWindow() {
