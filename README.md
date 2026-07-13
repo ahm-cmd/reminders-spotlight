@@ -41,3 +41,4 @@ Or build, sign, and install to `/Applications` in one step:
 ## Credits & license
 
 Reminders Spotlight is a fork of [**reminders-menubar**](https://github.com/DamascenoRafael/reminders-menubar) by Rafael Damasceno, reworked into a Spotlight-style quick-entry tool. Like the original, it is licensed under the **GNU General Public License v3** — see [LICENSE](LICENSE).
+Reminders Spotlight was developed in part via Claude Code.
