@@ -103,6 +103,13 @@ class DateParser {
         if let phrase = phraseDate(from: textString) {
             return phrase
         }
+        // "one week before august 15", "2 days after friday", "by monday" — anchor
+        // to the real date and apply the offset. Must run before NSDataDetector,
+        // which otherwise reads "before <date>" as a vague expression and returns
+        // today, swallowing the actual date.
+        if let offset = relativeOffsetDate(from: textString) {
+            return offset
+        }
 
         let range = NSRange(textString.startIndex..., in: textString)
 
@@ -196,6 +203,85 @@ class DateParser {
             textDateResult: textDateResult,
             duration: 0
         )
+    }
+
+    /// Parses "[N unit] before/after/by <date>" → the base date shifted by the
+    /// offset. "one week before august 15" → Aug 15 minus a week; a bare
+    /// "before/by monday" → that date (offset 0). The base date is parsed by the
+    /// normal path, so any date form works after the preposition.
+    private func relativeOffsetDate(from textString: String) -> DateParserResult? {
+        let prefix = "\\b(?:(\\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+            + "\\s+(day|week|month|year)s?\\s+)?(before|after|prior to|ahead of|by)\\s+"
+        guard let regex = try? NSRegularExpression(pattern: prefix, options: [.caseInsensitive]) else {
+            return nil
+        }
+        let full = NSRange(textString.startIndex..., in: textString)
+        guard let match = regex.firstMatch(in: textString, options: [], range: full) else {
+            return nil
+        }
+
+        // Everything after the "…before/after/by " prefix is the base date phrase.
+        let prefixEnd = match.range.location + match.range.length
+        guard prefixEnd < full.length,
+              let restRange = Range(NSRange(location: prefixEnd, length: full.length - prefixEnd), in: textString) else {
+            return nil
+        }
+        let restText = String(textString[restRange])
+        guard let base = getDate(from: restText),
+              let baseRange = base.textDateResult.ranges.first else {
+            return nil
+        }
+
+        var amount = 0
+        var component: Calendar.Component = .day
+        if let quantityRange = Range(match.range(at: 1), in: textString),
+           let unitRange = Range(match.range(at: 2), in: textString) {
+            amount = number(from: String(textString[quantityRange]))
+            component = calendarComponent(from: String(textString[unitRange]))
+        }
+        let preposition = Range(match.range(at: 3), in: textString).map { String(textString[$0]).lowercased() } ?? ""
+        let signedAmount = preposition == "after" ? amount : -amount
+        let shiftedDate = Calendar.current.date(byAdding: component, value: signedAmount, to: base.date) ?? base.date
+
+        // Highlight/strip from the prefix start through the end of the base date,
+        // leaving any trailing title text intact.
+        let stripLength = match.range.length + baseRange.location + baseRange.length
+        let stripRange = NSRange(location: match.range.location, length: stripLength)
+        return DateParserResult(
+            date: shiftedDate,
+            hasTime: base.hasTime,
+            isTimeOnly: false,
+            textDateResult: TextDateResult(range: stripRange, string: textString.substring(in: stripRange)),
+            duration: base.duration
+        )
+    }
+
+    private func number(from text: String) -> Int {
+        if let n = Int(text) { return n }
+        switch text.lowercased() {
+        case "a", "an", "one": return 1
+        case "two": return 2
+        case "three": return 3
+        case "four": return 4
+        case "five": return 5
+        case "six": return 6
+        case "seven": return 7
+        case "eight": return 8
+        case "nine": return 9
+        case "ten": return 10
+        case "eleven": return 11
+        case "twelve": return 12
+        default: return 1
+        }
+    }
+
+    private func calendarComponent(from unit: String) -> Calendar.Component {
+        switch unit.lowercased() {
+        case "week": return .weekOfYear
+        case "month": return .month
+        case "year": return .year
+        default: return .day
+        }
     }
 
     /// Parses common phrases NSDataDetector misses: "this/next weekend",

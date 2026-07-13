@@ -6,7 +6,7 @@ struct ContentView: View {
     @ObservedObject var userPreferences = UserPreferences.shared
     @Binding var scrolledDown: Bool
     @State private var appHasPopoverOpen = false
-    @State private var selectedIndex = 0   // keyboard selection over flatReminders
+    @State private var selectedIndex = -1   // keyboard selection over flatReminders; -1 = none, so no row is pre-highlighted on open
 
     /// Flat, ordered reminders across the visible list sections (keyboard nav).
     private var flatReminders: [ReminderItem] {
@@ -68,12 +68,7 @@ struct ContentView: View {
                     Section(header: CalendarTitle(
                         title: userPreferences.upcomingRemindersInterval.sectionTitle,
                         color: .rmbColor(.upcomingSectionTitle),
-                        icon: {
-                            if userPreferences.filterUpcomingRemindersByCalendar {
-                                Image(rmbSymbol: .filterCircle)
-                                    .help(rmbLocalized(.upcomingRemindersFilterByCalendarEnabledHelp))
-                            }
-                        }
+                        icon: { EmptyView() }
                     )) {
                         UpcomingRemindersContent()
                     }

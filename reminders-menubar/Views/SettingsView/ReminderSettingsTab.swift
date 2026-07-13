@@ -23,13 +23,6 @@ struct ReminderSettingsTab: View {
                     rmbLocalized(.showUpcomingReminderListNameOption),
                     isOn: $userPreferences.showUpcomingReminderListName
                 )
-
-                Toggle(isOn: $userPreferences.filterUpcomingRemindersByCalendar) {
-                    HStack {
-                        Text(rmbLocalized(.filterUpcomingRemindersByCalendarOption))
-                        Image(rmbSymbol: .filterCircle)
-                    }
-                }
             }
 
             if #available(macOS 12, *) {

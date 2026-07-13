@@ -117,9 +117,6 @@ struct ReminderItemView: View {
                     .padding(.trailing, 8)
                 }
 
-                Divider()
-                    .padding(.top, 2)
-                    .opacity(0.8)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
@@ -146,14 +143,19 @@ struct ReminderItemView: View {
             copyCoordinator.clearIfCurrent(reminderId: reminderItem.id)
             if isEditingTitle { InlineTitleEditState.shared.isEditing = false }
         }
+        // Even breathing room inside the selection highlight so it reads as a
+        // generous pill wrapping the whole row (a row divider used to sit inside
+        // the highlight and made it look lopsided).
+        .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.accentColor.opacity(isKeyboardSelected ? 0.12 : 0))
-                // Extend past the row so the highlight doesn't line up flush with
-                // the leading edge of the complete-circle.
+                // Extend horizontally too, so it doesn't line up flush with the
+                // complete-circle.
                 .padding(.horizontal, -6)
         )
-        .padding(.bottom, 2)
+        // Space between entries.
+        .padding(.bottom, 6)
         .padding(.leading, reminderItem.isChild ? 22 : 0)
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             dateInvalidation = Date()

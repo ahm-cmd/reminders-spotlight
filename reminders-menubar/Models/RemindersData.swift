@@ -52,8 +52,7 @@ class RemindersData: ObservableObject {
 
     private func addUpcomingObservers() {
         Publishers.MergeMany(
-            UserPreferences.shared.$upcomingRemindersInterval.map { _ in }.eraseToAnyPublisher(),
-            UserPreferences.shared.$filterUpcomingRemindersByCalendar.map { _ in }.eraseToAnyPublisher()
+            UserPreferences.shared.$upcomingRemindersInterval.map { _ in }.eraseToAnyPublisher()
         )
         .dropFirst()
         .sink { [weak self] _ in
@@ -224,13 +223,11 @@ class RemindersData: ObservableObject {
     }
     
     private func getUpcomingReminders() async -> [ReminderItem] {
-        let calendarFilter = UserPreferences.shared.filterUpcomingRemindersByCalendar
-            ? self.calendarIdentifiersFilter
-            : nil
-
+        // Upcoming/overdue reminders always honor the list filter, so hiding a
+        // list hides its reminders everywhere — including overdue ones.
         return await RemindersService.shared.getUpcomingReminders(
             UserPreferences.shared.upcomingRemindersInterval,
-            for: calendarFilter
+            for: self.calendarIdentifiersFilter
         )
     }
 

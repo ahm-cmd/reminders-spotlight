@@ -15,7 +15,6 @@ private enum PreferencesKeys {
     static let preferTransparentBackground = "backgroundIsTransparent"
     static let showUpcomingReminders = "showUpcomingReminders"
     static let upcomingRemindersInterval = "upcomingRemindersInterval"
-    static let filterUpcomingRemindersByCalendar = "filterUpcomingRemindersByCalendar"
     static let menuBarCounterType = "menuBarCounterType"
     static let filterMenuBarContentByCalendar = "filterMenuBarCountByCalendar"
     static let hideMenuBarIconWhenContentIsShown = "hideMenuBarIconWhenCounterIsShown"
@@ -184,17 +183,6 @@ class UserPreferences: ObservableObject {
         didSet {
             let intervalData = try? JSONEncoder().encode(upcomingRemindersInterval)
             UserPreferences.defaults.set(intervalData, forKey: PreferencesKeys.upcomingRemindersInterval)
-        }
-    }
-    
-    @Published var filterUpcomingRemindersByCalendar: Bool = {
-        return defaults.bool(forKey: PreferencesKeys.filterUpcomingRemindersByCalendar)
-    }() {
-        didSet {
-            UserPreferences.defaults.set(
-                filterUpcomingRemindersByCalendar,
-                forKey: PreferencesKeys.filterUpcomingRemindersByCalendar
-            )
         }
     }
     

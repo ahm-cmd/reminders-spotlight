@@ -896,7 +896,7 @@ private struct UpcomingEventsView: View {
     @ObservedObject private var userPreferences = UserPreferences.shared
     @State private var allEvents: [EKEvent] = []
     @State private var eventCalendars: [EKCalendar] = []
-    @State private var selectedIndex = 0   // keyboard selection
+    @State private var selectedIndex = -1   // keyboard selection; -1 = none (no event pre-highlighted on open)
 
     /// Events minus any calendars the user has hidden via the filter.
     private var events: [EKEvent] {
@@ -934,7 +934,7 @@ private struct UpcomingEventsView: View {
             .onAppear {
                 allEvents = RemindersService.shared.getUpcomingEvents()
                 eventCalendars = RemindersService.shared.getAllEventCalendars()
-                selectedIndex = 0
+                selectedIndex = -1
             }
             .onReceive(NotificationCenter.default.publisher(for: .panelNavigateUp)) { _ in
                 moveSelection(-1)
