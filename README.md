@@ -7,7 +7,7 @@
 <p align="center"><em>A Spotlight-style quick-entry app for Apple Reminders and Calendar on macOS. Press ⌥Space, make a note, and get back to the real work.</em></p>
 
 <p align="center">
-  <img src="docs/spotlight_eg_cropped.png" alt="Reminders Spotlight" width="620">
+  <img src="docs/demo.gif" alt="Reminders Spotlight in action" width="640">
 </p>
 
 ## Features
