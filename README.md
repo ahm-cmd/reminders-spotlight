@@ -12,9 +12,9 @@
 
 ## Features
 
-- **Spotlight-style entry**: A centered floating panel on ⌥Space, with access to Reminders mode or Calendar mode.
-- *Reminders Mode* (default): Type Reminders in plain English and hit ENTER to save your entry to Apple Reminders.
-- *Calendar Mode*: With the ⌥Space menu open, press UP on your keyboard. This will switch the app to *Calendar Mode*. In Calendar Mode, type new Events in plain English and hit ENTER to save your entry to Apple Calendar.
+- **Spotlight-style entry**: A centered floating panel on '⌥Space', with access to Reminders mode or Calendar mode.
+- **Reminders Mode** (default): Type Reminders in plain English and hit 'ENTER' to save your entry to Apple Reminders.
+- **Calendar Mode**: With the '⌥Space' menu open, press 'UP' on your keyboard. This will switch the app to *Calendar Mode*. In Calendar Mode, type new Events in plain English and hit 'ENTER' to save your entry to Apple Calendar.
 - **Natural language**: "Call X tomorrow 9am !!" sets the due date, time, and priority automatically; tags are recognized too.
 - **`@` list shortcuts**: Define your own in *Settings → Shortcuts* (e.g. `@p` → Personal). Typing the shortcut routes the Reminder to that List (or the Event to that Calendar) and disappears from the text.
 - **Move to browse, type to write**: Nudge the mouse and the panel expands to show all your Reminders or upcoming Events. Start typing and it collapses back so you can focus on what you're writing next.
