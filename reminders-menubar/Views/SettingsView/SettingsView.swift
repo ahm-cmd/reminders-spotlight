@@ -5,14 +5,23 @@ enum SettingsTab: Hashable {
     case general
     case menuBar
     case reminders
-    case copy
     case keyboard
     case shortcuts
     case about
 }
 
+/// Reports the natural (unconstrained) height of the current settings tab so the
+/// window can animate its bottom edge to fit each page.
+private struct SettingsHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject private var coordinator = SettingsCoordinator.shared
+    @State private var displayHeight: CGFloat?
 
     var body: some View {
         TabView(selection: $coordinator.selectedTab) {
@@ -34,12 +43,6 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.reminders)
 
-            CopySettingsTab()
-                .tabItem {
-                    Label(rmbLocalized(.copySettingsTab), rmbSymbol: .docOnDoc)
-                }
-                .tag(SettingsTab.copy)
-
             KeyboardSettingsTab()
                 .tabItem {
                     Label(rmbLocalized(.keyboardSettingsTab), rmbSymbol: .keyboard)
@@ -59,6 +62,29 @@ struct SettingsView: View {
                 .tag(SettingsTab.about)
         }
         .frame(width: 620)
+        // Take the natural height of whichever tab is showing, and report it...
+        .fixedSize(horizontal: false, vertical: true)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: SettingsHeightKey.self, value: proxy.size.height)
+            }
+        )
+        // ...then constrain the window to an animated height so switching tabs eases
+        // the bottom edge open/closed instead of snapping instantly.
+        .frame(height: displayHeight, alignment: .top)
+        .clipped()
+        .onPreferenceChange(SettingsHeightKey.self) { newHeight in
+            guard newHeight > 1 else { return }
+            guard let current = displayHeight else {
+                displayHeight = newHeight
+                return
+            }
+            if abs(current - newHeight) > 0.5 {
+                withAnimation(.easeOut(duration: 0.22)) {
+                    displayHeight = newHeight
+                }
+            }
+        }
     }
 }
 
@@ -73,22 +99,20 @@ struct SettingsView: View {
 /// route a calendar event to a calendar.
 struct ShortcutsSettingsTab: View {
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+        Form {
+            // Wrap the sections in one VStack so Form treats them as a single view
+            // rather than auto-interpreting each SettingsSection's label+content as
+            // a form row (which trailing-aligns a section whose content leads with
+            // text, e.g. an empty shortcut list).
+            VStack(alignment: .leading, spacing: 0) {
                 ListShortcutsSection()
-                Divider()
+                SettingsDivider()
                 TagShortcutsSection()
-                Divider()
+                SettingsDivider()
                 CalendarShortcutsSection()
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        // A definite height: a height-less ScrollView has no intrinsic size, so the
-        // Settings window kept whatever height the previous tab had (the list was
-        // clipped/invisible when arriving from a short tab). Content beyond this
-        // scrolls.
-        .frame(maxWidth: .infinity, minHeight: 540, maxHeight: 540)
+        .padding(20)
     }
 }
 
@@ -108,24 +132,17 @@ struct ListShortcutsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(String("List Shortcuts"))
-                .font(.headline)
-
+        SettingsSection(String("List Shortcuts")) {
             Text(String("Type a shortcut like “@p” in the reminder field. It’s removed from the "
                 + "text and the reminder is assigned to the chosen list."))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .modifier(SettingsNoteStyle())
 
             if calendars.isEmpty {
                 Text(String("No reminder lists available."))
                     .foregroundStyle(.secondary)
             } else {
-                VStack(spacing: 8) {
-                    ForEach($entries) { $entry in
-                        shortcutRow($entry)
-                    }
+                ForEach($entries) { $entry in
+                    shortcutRow($entry)
                 }
 
                 Button {
@@ -136,7 +153,6 @@ struct ListShortcutsSection: View {
                 .buttonStyle(.borderless)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             calendars = RemindersService.shared.getCalendars()
             load()
@@ -224,20 +240,13 @@ struct TagShortcutsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(String("Tag Shortcuts"))
-                .font(.headline)
-
+        SettingsSection(String("Tag Shortcuts")) {
             Text(String("Type a shortcut like “#wp” in the reminder field. It expands to the full "
                 + "tag (e.g. “work-project”) and tags the reminder."))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .modifier(SettingsNoteStyle())
 
-            VStack(spacing: 8) {
-                ForEach($entries) { $entry in
-                    shortcutRow($entry)
-                }
+            ForEach($entries) { $entry in
+                shortcutRow($entry)
             }
 
             Button {
@@ -247,7 +256,6 @@ struct TagShortcutsSection: View {
             }
             .buttonStyle(.borderless)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { load() }
         .onChange(of: entries) { _ in scheduleSave() }
     }
@@ -328,15 +336,10 @@ struct CalendarShortcutsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(String("Calendar Shortcuts"))
-                .font(.headline)
-
+        SettingsSection(String("Calendar Shortcuts")) {
             Text(String("Type a shortcut like “@w” while adding a calendar event (Calendar mode). "
                 + "It’s removed from the text and the event is added to the chosen calendar."))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .modifier(SettingsNoteStyle())
 
             if !RemindersService.shared.isCalendarAuthorized {
                 Button(String("Allow Calendar Access…")) {
@@ -347,10 +350,8 @@ struct CalendarShortcutsSection: View {
                 Text(String("No calendars available."))
                     .foregroundStyle(.secondary)
             } else {
-                VStack(spacing: 8) {
-                    ForEach($entries) { $entry in
-                        shortcutRow($entry)
-                    }
+                ForEach($entries) { $entry in
+                    shortcutRow($entry)
                 }
 
                 Button {
@@ -361,7 +362,6 @@ struct CalendarShortcutsSection: View {
                 .buttonStyle(.borderless)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             if RemindersService.shared.isCalendarAuthorized {
                 calendars = RemindersService.shared.getAllEventCalendars()

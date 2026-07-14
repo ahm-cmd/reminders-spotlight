@@ -59,7 +59,6 @@
 		6338794B5875D3516F6033EB /* Array+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A5F3E0D17707FA2C55E3C1F /* Array+Extension.swift */; };
 		64E80BC95A39A03433266AF5 /* ReminderEllipsisMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24E9A7D5D7C77243EBD9BC72 /* ReminderEllipsisMenuView.swift */; };
 		67F75674687EDAE895C0BA87 /* ReminderTagsEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804E5EB3032E66B7311FB3C5 /* ReminderTagsEditView.swift */; };
-		680E22E9184BDB67942C47D5 /* CopySettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = D376445203272C51156D8506 /* CopySettingsTab.swift */; };
 		696F39A77020C73398AFEDC7 /* ReminderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA816926B2D25C171037FD0 /* ReminderItem.swift */; };
 		6B3A21EC8E2C71ACF4376979 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3553BCE25734EE585A8A6ABF /* ContentView.swift */; };
 		6D08B1EA7985D8EF69817ABD /* EKReminder+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884811E9C783F55701054258 /* EKReminder+Extensions.swift */; };
@@ -219,7 +218,6 @@
 		C96E04914057A9E19CAD7352 /* ToolbarButtonModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarButtonModifier.swift; sourceTree = "<group>"; };
 		CEDE612DA71B85FC11010114 /* ToolbarButtonLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarButtonLabel.swift; sourceTree = "<group>"; };
 		D0941AB7906E8E8E7E7CA08C /* EKRecurrenceRule+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EKRecurrenceRule+Extensions.swift"; sourceTree = "<group>"; };
-		D376445203272C51156D8506 /* CopySettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopySettingsTab.swift; sourceTree = "<group>"; };
 		D49B3FBC284364DBDD3CFE0A /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
 		D5AC744AD2DCDC6E71DB7D42 /* ReminderChangeDueDateOptionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderChangeDueDateOptionMenu.swift; sourceTree = "<group>"; };
 		D81FD068646D383C4EC8C928 /* PrioritizedReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrioritizedReminders.swift; sourceTree = "<group>"; };
@@ -371,7 +369,6 @@
 			isa = PBXGroup;
 			children = (
 				BDBF8F3C0F3426EECADE1B76 /* AboutSettingsTab.swift */,
-				D376445203272C51156D8506 /* CopySettingsTab.swift */,
 				806610BDF4FC8FFAE70B9102 /* GeneralSettingsTab.swift */,
 				2FF30EB4AC63997B4274300C /* KeyboardSettingsTab.swift */,
 				9DE1B1E696A0A13A84AC4B74 /* MenuBarSettingsTab.swift */,
@@ -557,6 +554,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					AD0CC55086408840EB94532B = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -620,7 +618,6 @@
 				36370D204F69EFC010680246 /* Constants.swift in Sources */,
 				6B3A21EC8E2C71ACF4376979 /* ContentView.swift in Sources */,
 				3AE9535BF4ECA90DBED415FC /* CopyProperty.swift in Sources */,
-				680E22E9184BDB67942C47D5 /* CopySettingsTab.swift in Sources */,
 				E593178FBB38DBA3FAFD2756 /* CopyShortcutCoordinator.swift in Sources */,
 				CDAC9699E20EF05755D9C9AF /* Date+Extensions.swift in Sources */,
 				771510979F696CDC8A93E85B /* DateParser.swift in Sources */,
@@ -729,7 +726,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewmott.reminders-menubar";
 				SDKROOT = macosx;
 			};
@@ -784,7 +781,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "Reminders Spotlight";
@@ -850,7 +847,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -874,7 +871,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.andrewmott.reminders-menubar";
 				SDKROOT = macosx;
 			};
