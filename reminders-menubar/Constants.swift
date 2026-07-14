@@ -17,7 +17,7 @@ enum AppConstants {
 }
 
 enum GithubConstants {
-    static let repository = "DamascenoRafael/reminders-menubar"
+    static let repository = "ahm-cmd/reminders-spotlight"
     static let repositoryPage = "https://github.com/\(repository)"
 }
 
