@@ -33,6 +33,7 @@ private enum PreferencesKeys {
     static let menuBarReminderPreviewMaxLength = "menuBarReminderPreviewMaxLength"
     static let hideCounterWhenReminderPreviewIsShown = "hideCounterWhenReminderPreviewIsShown"
     static let menuBarReminderPreviewShowTodayReminders = "menuBarReminderPreviewShowTodayReminders"
+    static let menuBarReminderPreviewExpanded = "menuBarReminderPreviewExpanded"
     static let tagsFilter = "tagsFilter"
     static let showTagsBeforeCalendars = "showTagsBeforeCalendars"
     static let filterTagRemindersByCalendar = "filterTagRemindersByCalendar"
@@ -439,6 +440,19 @@ class UserPreferences: ObservableObject {
             UserPreferences.defaults.set(
                 menuBarReminderPreviewShowTodayReminders,
                 forKey: PreferencesKeys.menuBarReminderPreviewShowTodayReminders
+            )
+        }
+    }
+
+    // When on, the menu-bar preview shows a much longer slice of the reminder
+    // title (bounded, so macOS still keeps it from crowding other menu-bar items).
+    @Published var menuBarReminderPreviewExpanded: Bool = {
+        return defaults.bool(forKey: PreferencesKeys.menuBarReminderPreviewExpanded)
+    }() {
+        didSet {
+            UserPreferences.defaults.set(
+                menuBarReminderPreviewExpanded,
+                forKey: PreferencesKeys.menuBarReminderPreviewExpanded
             )
         }
     }

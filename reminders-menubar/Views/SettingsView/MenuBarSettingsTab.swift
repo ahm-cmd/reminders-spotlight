@@ -89,6 +89,12 @@ struct MenuBarSettingsTab: View {
                     .modifier(SettingsNoteStyle())
                     .padding(.leading, 20)
 
+                Toggle(
+                    String("Expand reminder text to full length"),
+                    isOn: $userPreferences.menuBarReminderPreviewExpanded
+                )
+                .disabled(isReminderPreviewDisabled)
+
                 HStack {
                     Text(rmbLocalized(.menuBarPreviewMaxLengthLabel))
                     Slider(
@@ -100,12 +106,12 @@ struct MenuBarSettingsTab: View {
                         step: 5
                     )
                     .labelsHidden()
-                    .disabled(isReminderPreviewDisabled)
+                    .disabled(isReminderPreviewDisabled || userPreferences.menuBarReminderPreviewExpanded)
                     .frame(maxWidth: 260)
 
                     Text(String(userPreferences.menuBarReminderPreviewMaxLength))
                         .foregroundColor(.secondary)
-                        .opacity(isReminderPreviewDisabled ? 0.4 : 1.0)
+                        .opacity((isReminderPreviewDisabled || userPreferences.menuBarReminderPreviewExpanded) ? 0.4 : 1.0)
                         .frame(minWidth: 20, alignment: .trailing)
                 }
                 .padding(.leading, 20)

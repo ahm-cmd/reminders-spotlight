@@ -17,6 +17,7 @@ class MenuBarPreviewService {
         Publishers.MergeMany(
             UserPreferences.shared.$menuBarReminderPreviewTimeAhead.map { _ in }.eraseToAnyPublisher(),
             UserPreferences.shared.$menuBarReminderPreviewMaxLength.map { _ in }.eraseToAnyPublisher(),
+            UserPreferences.shared.$menuBarReminderPreviewExpanded.map { _ in }.eraseToAnyPublisher(),
             UserPreferences.shared.$hideCounterWhenReminderPreviewIsShown.map { _ in }.eraseToAnyPublisher(),
             UserPreferences.shared.$menuBarReminderPreviewShowTodayReminders.map { _ in }.eraseToAnyPublisher()
         )
@@ -123,7 +124,12 @@ class MenuBarPreviewService {
     }
 
     private func truncateTitle(_ title: String) -> String {
-        let maxLength = UserPreferences.shared.menuBarReminderPreviewMaxLength
+        // Expanded mode shows a much longer slice (bounded at 50 so it can't grow
+        // without limit — macOS keeps the item from crowding others); otherwise
+        // honor the user's max-length slider.
+        let maxLength = UserPreferences.shared.menuBarReminderPreviewExpanded
+            ? 50
+            : UserPreferences.shared.menuBarReminderPreviewMaxLength
         // Don't truncate if we'd only save one character (the ellipsis will replace it).
         guard title.count > maxLength + 1 else {
             return title
