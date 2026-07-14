@@ -47,7 +47,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var spaceObserver: NSObjectProtocol?
     private var panelWasVisible = false
     private var globalMouseMoveMonitor: Any?
+    private var localMouseMoveMonitor: Any?
     private var mouseMoveAnchor: NSPoint = .zero
+    private var moveObserver: NSObjectProtocol?
+    private var isProgrammaticMove = false
+    /// Whether the card is currently held at the magnetic center. Drives the
+    /// hysteresis in `panelDidMove` (small radius to grab center, larger radius to
+    /// release) so tiny mouse jitter near center doesn't flip it between centered
+    /// and cursor-following.
+    private var panelIsSnappedToCenter = false
 
     lazy var statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
@@ -218,9 +226,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver)
             self.spaceObserver = nil
         }
+        if let moveObserver {
+            NotificationCenter.default.removeObserver(moveObserver)
+            self.moveObserver = nil
+        }
         if let globalMouseMoveMonitor {
             NSEvent.removeMonitor(globalMouseMoveMonitor)
             self.globalMouseMoveMonitor = nil
+        }
+        if let localMouseMoveMonitor {
+            NSEvent.removeMonitor(localMouseMoveMonitor)
+            self.localMouseMoveMonitor = nil
         }
         mainPanel?.orderOut(nil)
         mainPanel = nil
@@ -282,7 +298,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showMainWindow() {
         let panel = makeMainPanel()
         mainPanel = panel
-        positionCentered(panel)
+        positionPanel(panel)
 
         // Show as a non-activating overlay (Spotlight-style): the panel becomes
         // key so its text field accepts typing, but we do NOT call
@@ -341,15 +357,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.closeMainWindow() }
         }
 
-        // Expand to the full list on mouse movement while open. A global monitor
-        // catches movement over other apps / the desktop — which is where the
-        // cursor almost always is right after ⌥Space (it was on the keyboard).
-        // We intentionally do NOT also route mouse-moved through our own window
-        // (no local monitor / acceptsMouseMovedEvents), to avoid per-event
-        // hit-testing over the reminders list.
+        // Remember where the user drags the panel, and snap it home near center.
+        moveObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.panelDidMove() }
+        }
+
+        // Expand to the full list on mouse movement while open. Two monitors,
+        // because which one is live depends on activation:
+        //  • Global — movement over other apps / the desktop (the usual case right
+        //    after ⌥Space, when another app is still frontmost).
+        //  • Local — movement delivered to our own key panel, which is what happens
+        //    when the app is ALREADY active (e.g. Settings was open before ⌥Space).
+        //    Without this, nudging did nothing in that case.
+        // The handler is a cheap distance check, so watching both is fine.
         mouseMoveAnchor = NSEvent.mouseLocation
         globalMouseMoveMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
             MainActor.assumeIsolated { self?.mouseMovedWhileOpen() }
+        }
+        panel.acceptsMouseMovedEvents = true
+        localMouseMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+            MainActor.assumeIsolated { self?.mouseMovedWhileOpen() }
+            return event
         }
     }
 
@@ -423,31 +453,112 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let topY = frame.maxY
         frame.size.height = target
         frame.origin.y = topY - target
-        NSAnimationContext.runAnimationGroup { context in
+        // Resizing shifts origin.y (top stays fixed) → fires didMove; suppress the
+        // drag handler so an expand/collapse isn't mistaken for the user dragging.
+        isProgrammaticMove = true
+        NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.11
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().setFrame(frame, display: true)
+        }, completionHandler: { [weak self] in
+            self?.isProgrammaticMove = false
+        })
+    }
+
+    /// Persisted top-left of the card if the user has dragged it off-center.
+    /// Stored as [x, y]; absent means "use the default centered position".
+    private var savedPanelTopLeft: NSPoint? {
+        get {
+            guard let a = UserDefaults.standard.array(forKey: "spotlightPanelTopLeft") as? [Double],
+                  a.count == 2 else { return nil }
+            return NSPoint(x: a[0], y: a[1])
+        }
+        set {
+            if let p = newValue {
+                UserDefaults.standard.set([Double(p.x), Double(p.y)], forKey: "spotlightPanelTopLeft")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "spotlightPanelTopLeft")
+            }
         }
     }
 
-    private func positionCentered(_ panel: NSPanel) {
+    /// Position the panel at the user's saved spot (if they dragged it somewhere
+    /// and it's still on-screen), otherwise centered like Spotlight.
+    private func positionPanel(_ panel: NSPanel) {
+        isProgrammaticMove = true
+        defer { DispatchQueue.main.async { self.isProgrammaticMove = false } }
+
         let size = panel.frame.size
+        if let saved = savedPanelTopLeft, NSScreen.screens.contains(where: { $0.frame.contains(saved) }) {
+            panelIsSnappedToCenter = false
+            panel.setFrameOrigin(NSPoint(x: saved.x, y: saved.y - size.height))
+            return
+        }
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
         guard let frame = screen?.frame else { return }
+        panelIsSnappedToCenter = true
+        panel.setFrameOrigin(centeredWindowOrigin(size: size, screenFrame: frame))
+    }
+
+    /// Window origin that centers the card horizontally and puts its top at
+    /// Spotlight's measured height.
+    private func centeredWindowOrigin(size: NSSize, screenFrame frame: NSRect) -> NSPoint {
         let x = frame.midX - size.width / 2
         // Spotlight's gap above the bar is NOT a constant fraction of the screen.
         // Measured against real Spotlight: 268pt down on a 1080pt-tall display,
-        // 161pt down on a 900pt one. Those two points define the line below — a
-        // single fraction (what we had) fits one display but drifts on the other,
-        // which is why the position broke when the display changed. Clamp keeps
-        // unusual sizes sane. Measured from the FULL screen frame so the menu bar
-        // / Dock can't skew it per-display.
+        // 161pt down on a 900pt one — the fitted line below. Clamp keeps unusual
+        // sizes sane. Measured from the FULL screen frame so the menu bar / Dock
+        // can't skew it per-display.
         let h = frame.height
         let gap = min(max(0.5944 * h - 374, h * 0.12), h * 0.30)
         let cardTopY = frame.maxY - gap
         let y = (cardTopY + SpotlightMetrics.chromeInset) - size.height
-        panel.setFrameOrigin(NSPoint(x: x.rounded(), y: y.rounded()))
+        return NSPoint(x: x.rounded(), y: y.rounded())
+    }
+
+    /// The user dragged the panel. If they brought it back near center it snaps
+    /// home and forgets the custom spot (like Spotlight); otherwise remember it.
+    private func panelDidMove() {
+        guard !isProgrammaticMove, let panel = mainPanel, panel.isVisible else { return }
+        let screen = NSScreen.screens.first { $0.frame.intersects(panel.frame) } ?? NSScreen.main
+        guard let frame = screen?.frame else { return }
+        let size = panel.frame.size
+        let centeredOrigin = centeredWindowOrigin(size: size, screenFrame: frame)
+        let dx = panel.frame.minX - centeredOrigin.x
+        let dy = panel.frame.minY - centeredOrigin.y
+        let distanceSquared = dx * dx + dy * dy
+
+        // Hysteresis: a small radius grabs the card into the magnetic center; a
+        // larger one is needed to pull it back out. In between it stays pinned to
+        // center even as the cursor jitters — so nudging the mouse a little keeps
+        // it centered instead of choppily re-summoning it to the cursor.
+        let snapIn: CGFloat = 34
+        let snapOut: CGFloat = 110
+
+        if panelIsSnappedToCenter {
+            if distanceSquared > snapOut * snapOut {
+                panelIsSnappedToCenter = false
+                savedPanelTopLeft = NSPoint(x: panel.frame.minX, y: panel.frame.maxY)
+            } else {
+                pinPanelToCenter(panel, origin: centeredOrigin)
+            }
+        } else if distanceSquared < snapIn * snapIn {
+            panelIsSnappedToCenter = true
+            pinPanelToCenter(panel, origin: centeredOrigin)
+        } else {
+            savedPanelTopLeft = NSPoint(x: panel.frame.minX, y: panel.frame.maxY)
+        }
+    }
+
+    /// Pin the panel to its magnetic center, forgetting any saved off-center spot.
+    /// No-op if it's already there, so we don't re-set the frame every drag tick.
+    private func pinPanelToCenter(_ panel: NSPanel, origin: NSPoint) {
+        savedPanelTopLeft = nil
+        guard panel.frame.origin != origin else { return }
+        isProgrammaticMove = true
+        panel.setFrameOrigin(origin)
+        DispatchQueue.main.async { self.isProgrammaticMove = false }
     }
 
     // - MARK: Popover sizing
