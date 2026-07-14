@@ -248,6 +248,7 @@ struct SpotlightView: View {
         Group {
             if eventMode {
                 UpcomingEventsView()
+                    .transition(modeSwapTransition)
             } else {
                 ContentView(scrolledDown: $listScrolled)
                     .overlay(alignment: .topTrailing) {
@@ -264,6 +265,7 @@ struct SpotlightView: View {
                         .opacity(listScrolled ? 0 : 1)
                         .animation(.easeInOut(duration: 0.18), value: listScrolled)
                     }
+                    .transition(modeSwapTransition)
             }
         }
         .frame(height: listCardHeight)
@@ -411,14 +413,11 @@ struct SpotlightView: View {
                 ensureCalendarAccess()
             }
         }
-        if expanded {
-            // Collapse the open list first; swapping the card's contents (reminders
-            // list ⇄ events list) while a List is mounted can trip the resize crash.
-            // Re-expanding then shows the new mode's content.
-            collapse(then: apply)
-        } else {
-            apply()
-        }
+        // Swap in place. The window height is identical in both modes, so switching
+        // never resizes the window — even while the list is expanded — so the old
+        // resize-crash risk doesn't apply. Keep the browse list open and let its
+        // contents cross-fade to the new mode.
+        apply()
     }
 
     /// Watches for ↑/↓ while the Spotlight panel is focused and uses them to swap
@@ -464,13 +463,14 @@ struct SpotlightView: View {
                 return nil
             }
             if expanded {
-                // Browsing: ↑/↓ move the list selection, ↩ activates it.
-                switch event.keyCode {
-                case 126: NotificationCenter.default.post(name: .panelNavigateUp, object: nil); return nil
-                case 125: NotificationCenter.default.post(name: .panelNavigateDown, object: nil); return nil
-                case 36, 76: NotificationCenter.default.post(name: .panelActivateSelection, object: nil); return nil
-                default: return event
+                // Browsing (nudged open): ↑/↓ switch Reminders ⇄ Calendar in place.
+                // The expanded list is mouse-driven now, so arrows/Return are no
+                // longer captured for list navigation.
+                if event.keyCode == 125 || event.keyCode == 126 {
+                    handleArrowKey(up: event.keyCode == 126)
+                    return nil
                 }
+                return event
             } else if showNotes {
                 // Composing notes: let the notes editor handle ↑/↓/↩ (multi-line).
                 return event
@@ -929,7 +929,7 @@ private struct UpcomingEventsView: View {
                     OpenSettingButton()
                 }
                 .padding(.trailing, 20)
-                .padding(.top, 6)
+                .padding(.top, 16)   // align with the first day heading, like the Reminders view
             }
             .onAppear {
                 allEvents = RemindersService.shared.getUpcomingEvents()
@@ -983,6 +983,7 @@ private struct UpcomingEventsView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .padding(.top, 12)      // match the Reminders list: first heading + scroll bar start
                 .padding(.bottom, 10)
                 .onChange(of: selectedIndex) { _ in
                     if let event = selectedEvent {
