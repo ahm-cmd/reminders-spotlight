@@ -960,7 +960,9 @@ struct SpotlightView: View {
 
     private func finalTitle() -> String {
         var title = rmbReminder.title
-        if let priorityRange = Range(rmbReminder.textPriorityResult.highlightedText.range, in: title) {
+        // Priority (!/!!/!!!) applies only to reminders, so only strip it there.
+        // In event mode a freestanding "!" is just part of the title — keep it.
+        if !eventMode, let priorityRange = Range(rmbReminder.textPriorityResult.highlightedText.range, in: title) {
             title.replaceSubrange(priorityRange, with: "")
         }
         if userPreferences.removeParsedDateFromTitle {
@@ -969,8 +971,12 @@ struct SpotlightView: View {
             }
         }
         title = title.replacingOccurrences(of: rmbReminder.textCalendarResult.string, with: "")
-        for tagResult in rmbReminder.textTagResults.sorted(by: { $0.string.count > $1.string.count }) {
-            title = title.replacingOccurrences(of: tagResult.string, with: "")
+        // Tags (#foo) apply only to reminders, so only strip them there. In event
+        // mode a "#…" token is just part of the title — keep it.
+        if !eventMode {
+            for tagResult in rmbReminder.textTagResults.sorted(by: { $0.string.count > $1.string.count }) {
+                title = title.replacingOccurrences(of: tagResult.string, with: "")
+            }
         }
         // In event mode, also strip the parsed "@" calendar-shortcut token and any
         // "every …" recurrence phrase (neither is a reminder-list token, so the
