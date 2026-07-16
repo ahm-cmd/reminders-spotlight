@@ -9,6 +9,8 @@ private enum PreferencesKeys {
     static let tagShortcuts = "tagShortcuts"
     static let eventCalendarShortcuts = "eventCalendarShortcuts"
     static let hiddenEventCalendarIdentifiers = "hiddenEventCalendarIdentifiers"
+    static let collapsedReminderSections = "collapsedReminderSections"
+    static let plannerTags = "plannerTags"
     static let autoSuggestTodayForNewReminders = "autoSuggestTodayForNewReminders"
     static let removeParsedDateFromTitle = "removeParsedDateFromTitle"
     static let rmbColorScheme = "rmbColorScheme"
@@ -155,6 +157,25 @@ class UserPreferences: ObservableObject {
     }() {
         didSet {
             UserPreferences.defaults.set(hiddenEventCalendarIdentifiers, forKey: PreferencesKeys.hiddenEventCalendarIdentifiers)
+        }
+    }
+
+    /// Reminder list/tag sections the user has collapsed (by section id), so the
+    /// choice sticks across opens like the standard Reminders app.
+    @Published var collapsedReminderSections: [String] = {
+        return defaults.stringArray(forKey: PreferencesKeys.collapsedReminderSections) ?? []
+    }() {
+        didSet {
+            UserPreferences.defaults.set(collapsedReminderSections, forKey: PreferencesKeys.collapsedReminderSections)
+        }
+    }
+
+    /// Tags chosen (in order) as the → Planner's sections. Empty = show every tag.
+    @Published var plannerTags: [String] = {
+        return defaults.stringArray(forKey: PreferencesKeys.plannerTags) ?? []
+    }() {
+        didSet {
+            UserPreferences.defaults.set(plannerTags, forKey: PreferencesKeys.plannerTags)
         }
     }
 

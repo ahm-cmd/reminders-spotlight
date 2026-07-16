@@ -65,20 +65,28 @@ struct ContentView: View {
         ScrollViewReader { proxy in
             List {
                 if userPreferences.showUpcomingReminders {
-                    Section(header: CalendarTitle(
+                    let collapsed = isCollapsed(Self.upcomingSectionID)
+                    Section(header: collapsibleHeader(
                         title: userPreferences.upcomingRemindersInterval.sectionTitle,
                         color: .rmbColor(.upcomingSectionTitle),
+                        collapsed: collapsed,
+                        toggle: { toggleCollapse(Self.upcomingSectionID) },
                         icon: { EmptyView() }
                     )) {
-                        UpcomingRemindersContent()
+                        if !collapsed {
+                            UpcomingRemindersContent()
+                        }
                     }
                     .modifier(ListSectionModifier())
                 }
 
                 ForEach(remindersData.orderedFilteredSections) { section in
-                    Section(header: CalendarTitle(
+                    let collapsed = isCollapsed(section.id)
+                    Section(header: collapsibleHeader(
                         title: section.title,
                         color: section.color,
+                        collapsed: collapsed,
+                        toggle: { toggleCollapse(section.id) },
                         icon: {
                             if case .tag = section, userPreferences.filterTagRemindersByCalendar {
                                 Image(rmbSymbol: .filterCircle)
@@ -86,15 +94,17 @@ struct ContentView: View {
                             }
                         }
                     )) {
-                        if section.reminders.isEmpty {
-                            NoReminderItemsView(emptyList: .allItemsCompleted)
-                        }
-                        ForEach(section.reminders) { reminderItem in
-                            ReminderItemView(
-                                reminderItem: reminderItem,
-                                isKeyboardSelected: reminderItem.id == selectedReminder?.id
-                            )
-                            .id(reminderItem.id)
+                        if !collapsed {
+                            if section.reminders.isEmpty {
+                                NoReminderItemsView(emptyList: .allItemsCompleted)
+                            }
+                            ForEach(section.reminders) { reminderItem in
+                                ReminderItemView(
+                                    reminderItem: reminderItem,
+                                    isKeyboardSelected: reminderItem.id == selectedReminder?.id
+                                )
+                                .id(reminderItem.id)
+                            }
                         }
                     }
                     .modifier(ListSectionModifier())
@@ -108,6 +118,47 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Collapsible sections
+
+    private static let upcomingSectionID = "__upcoming__"
+
+    private func isCollapsed(_ id: String) -> Bool {
+        userPreferences.collapsedReminderSections.contains(id)
+    }
+
+    private func toggleCollapse(_ id: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if let index = userPreferences.collapsedReminderSections.firstIndex(of: id) {
+                userPreferences.collapsedReminderSections.remove(at: index)
+            } else {
+                userPreferences.collapsedReminderSections.append(id)
+            }
+        }
+    }
+
+    /// A section header with a disclosure chevron — click anywhere on it to fold or
+    /// unfold the section, like the standard Reminders app.
+    @ViewBuilder
+    private func collapsibleHeader<Icon: View>(
+        title: String,
+        color: Color,
+        collapsed: Bool,
+        toggle: @escaping () -> Void,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        Button(action: toggle) {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(color.opacity(0.85))
+                    .rotationEffect(.degrees(collapsed ? 0 : 90))
+                CalendarTitle(title: title, color: color, icon: icon)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private var noFilterContent: some View {

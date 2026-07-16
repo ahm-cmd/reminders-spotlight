@@ -32,8 +32,15 @@ struct SpotlightView: View {
     @State private var notesWork: DispatchWorkItem?
     @State private var notesFocusTrigger = UUID()
     @State private var listScrolled = false    // fades the list's filter/cog once scrolled
+    @State private var agendaMode = false       // day agenda (reminders + events), opened with →
+    @State private var agendaEverShown = false   // once →'d, the agenda stays mounted so toggling never remounts a List
 
     private let notesHeight: CGFloat = 104
+    // Dashboard push distances. The incoming panel travels farther than the
+    // outgoing view (parallax). The incoming's far end coincides with opacity 0,
+    // so it's invisible where it would clip the window edge.
+    private let dashboardSlideIn: CGFloat = 60
+    private let dashboardSlideOut: CGFloat = 26
     private let cardCornerRadius = SpotlightMetrics.cornerRadius
     private let fieldRowHeight = SpotlightMetrics.fieldRowHeight
     private let chipsRowHeight = SpotlightMetrics.chipsRowHeight
@@ -61,19 +68,40 @@ struct SpotlightView: View {
     }
 
     var body: some View {
-        VStack(spacing: cardGap) {
-            barCard
+        ZStack(alignment: .top) {
+            // Compose / Reminders / Events — the bar plus its browse list.
+            VStack(spacing: cardGap) {
+                barCard
 
-            if showList {
-                listCard
-                    // listShown drives a compositor-only fade for the typing-
-                    // collapse (the list stays MOUNTED while it fades, so nothing
-                    // reflows). The transition handles the reveal-in.
-                    .opacity(listShown ? 1 : 0)
-                    .transition(.offset(y: -8).combined(with: .opacity))
-            } else if notesMounted {
-                notesCard
-                    .transition(.offset(y: -8).combined(with: .opacity))
+                if showList {
+                    listCard
+                        // listShown drives a compositor-only fade for the typing-
+                        // collapse (the list stays MOUNTED while it fades, so nothing
+                        // reflows). The transition handles the reveal-in.
+                        .opacity(listShown ? 1 : 0)
+                        .transition(.offset(y: -8).combined(with: .opacity))
+                } else if notesMounted {
+                    notesCard
+                        .transition(.offset(y: -8).combined(with: .opacity))
+                }
+            }
+            .opacity(agendaMode ? 0 : 1)
+            // Parallax: the outgoing view slides a shorter distance than the
+            // incoming panel, so the transition reads as a layered push (→ pushes
+            // Reminders left; ← brings it back from the left).
+            .offset(x: agendaMode ? -dashboardSlideOut : 0)
+            .allowsHitTesting(!agendaMode)
+
+            // Dashboard — one panel, mounted ALONGSIDE the reminders view (not
+            // instead of it) and cross-faded/slid, so → / ← never remount a List or
+            // resize the window. Same total height, so it overlays exactly.
+            if agendaEverShown && showList {
+                dashboardPanel
+                    .opacity(agendaMode ? 1 : 0)
+                    // → slides it in from the right; ← slides it back out to the right.
+                    .offset(x: agendaMode ? 0 : dashboardSlideIn)
+                    .allowsHitTesting(agendaMode)
+                    .transition(.opacity)   // first reveal (opening from the bar) just fades in
             }
         }
         .opacity(dismissing ? 0 : 1)   // bubble-off fade after a reminder is saved
@@ -138,48 +166,55 @@ struct SpotlightView: View {
         }
     }
 
+    // MARK: - Field row
+
+    /// The leading glyph + entry field, factored out of the bar card.
+    private var fieldRow: some View {
+        HStack(spacing: 14) {
+            modeIcon
+
+            ZStack(alignment: .leading) {
+                // Custom placeholder so it can animate. It quietly rotates
+                // through example phrasings to teach the syntax (passive
+                // discoverability), and cross-fades on mode/example change.
+                if rmbReminder.title.isEmpty {
+                    Text(currentPlaceholder)
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundStyle(Color.primary.opacity(0.7))   // Spotlight's placeholder gray
+                        .lineLimit(1)
+                        .id(placeholderID)
+                        .transition(placeholderTransition)
+                        .allowsHitTesting(false)
+                }
+
+                // AppKit-backed field so parsed tokens can be colored inline.
+                // Placeholder stays empty here — the animated SwiftUI overlay
+                // above handles it.
+                RmbHighlightedTextField(
+                    placeholder: "",
+                    text: $rmbReminder.title,
+                    highlightedTexts: fieldHighlights,
+                    maximumNumberOfLines: 1,
+                    focusTrigger: $focusTrigger
+                )
+                .nsFont(.systemFont(ofSize: 24, weight: .regular))
+                .caretColor(destinationCaretColor)   // caret follows the destination
+                .singleLine()
+                .onSubmit(create)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            // No trailing control — Spotlight has none. Mouse-move and ⌘↓
+            // open the list; Esc / ⌘↓ / typing collapse it.
+        }
+        .padding(.horizontal, 20)
+        .frame(height: fieldRowHeight)
+    }
+
     // MARK: - Bar card
 
     private var barCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 14) {
-                modeIcon
-
-                ZStack(alignment: .leading) {
-                    // Custom placeholder so it can animate. It quietly rotates
-                    // through example phrasings to teach the syntax (passive
-                    // discoverability), and cross-fades on mode/example change.
-                    if rmbReminder.title.isEmpty {
-                        Text(currentPlaceholder)
-                            .font(.system(size: 24, weight: .regular))
-                            .foregroundStyle(Color.primary.opacity(0.7))   // Spotlight's placeholder gray
-                            .lineLimit(1)
-                            .id(placeholderID)
-                            .transition(placeholderTransition)
-                            .allowsHitTesting(false)
-                    }
-
-                    // AppKit-backed field so parsed tokens can be colored inline.
-                    // Placeholder stays empty here — the animated SwiftUI overlay
-                    // above handles it.
-                    RmbHighlightedTextField(
-                        placeholder: "",
-                        text: $rmbReminder.title,
-                        highlightedTexts: fieldHighlights,
-                        maximumNumberOfLines: 1,
-                        focusTrigger: $focusTrigger
-                    )
-                    .nsFont(.systemFont(ofSize: 24, weight: .regular))
-                    .caretColor(destinationCaretColor)   // caret follows the destination
-                    .singleLine()
-                    .onSubmit(create)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                // No trailing control — Spotlight has none. Mouse-move and ⌘↓
-                // open the list; Esc / ⌘↓ / typing collapse it.
-            }
-            .padding(.horizontal, 20)
-            .frame(height: fieldRowHeight)
+            fieldRow
 
             // Chips show only in the collapsed (Typing) UI. Gating on !expanded
             // means the bar never reflows (chips appearing) while the list is
@@ -274,6 +309,19 @@ struct SpotlightView: View {
         // this, so it stays unclipped.
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
         .background(cardSurface)
+    }
+
+    // MARK: - Dashboard panel (→)
+
+    /// One unified panel for the day agenda: a "View Upcoming Events" header over
+    /// the agenda list, in a single surface. It's kept MOUNTED alongside the
+    /// Reminders view (see `body`) and cross-faded, so toggling never remounts a
+    /// List or resizes the window.
+    private var dashboardPanel: some View {
+        TagPlannerView()
+            .frame(height: fieldRowHeight + cardGap + listCardHeight)
+            .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous))
+            .background(cardSurface)
     }
 
     // MARK: - Notes card
@@ -462,7 +510,25 @@ struct SpotlightView: View {
                 toggleNotes()
                 return nil
             }
+            // → open the day agenda (only from an empty field, where → wouldn't be
+            //   moving a caret); ← backs out of it.
+            if event.keyCode == 124 {   // right arrow
+                if rmbReminder.title.isEmpty && !agendaMode {
+                    openAgenda()
+                    return nil
+                }
+                return event
+            }
+            if event.keyCode == 123 {   // left arrow
+                if agendaMode {
+                    closeAgenda()
+                    return nil
+                }
+                return event
+            }
             if expanded {
+                // The agenda has no reminder⇄event switching — leave ↑/↓ alone.
+                if agendaMode { return event }
                 // Browsing (nudged open): ↑/↓ switch Reminders ⇄ Calendar in place.
                 // The expanded list is mouse-driven now, so arrows/Return are no
                 // longer captured for list navigation.
@@ -658,6 +724,38 @@ struct SpotlightView: View {
         scheduleListReveal()
     }
 
+    // MARK: - Day agenda (→)
+
+    /// The Reminders ⇄ Dashboard push. A snappy, well-damped spring: quick, almost
+    /// no overshoot (so the horizontal slide doesn't bounce), and interruptible —
+    /// reversing mid-slide re-targets smoothly, which is what makes fast toggling
+    /// feel native.
+    private var dashboardPush: Animation { .spring(response: 0.34, dampingFraction: 0.86) }
+
+    /// → opens the day's agenda (today's reminders + calendar events). Grows the
+    /// window first if it's collapsed; if the browse list is already up the content
+    /// swaps in place (window height is identical, so nothing resizes).
+    private func openAgenda() {
+        guard !agendaMode else { return }
+        agendaEverShown = true   // mount the agenda for the rest of the session
+        // Leave whatever mode you were in (Reminders or Calendar) UNTOUCHED
+        // underneath the dashboard — don't flip it. That keeps the bar text from
+        // flickering to "Create Reminder", and makes ← return you to the same view
+        // (Reminders or Calendar) you opened the dashboard from.
+        withAnimation(dashboardPush) {
+            agendaMode = true
+        }
+        if !expanded { expand() }
+    }
+
+    /// ← returns to the Reminders list. It's a pure in-place push (both lists stay
+    /// mounted, the window doesn't resize), so Reminders ⇄ Dashboard can be toggled
+    /// as fast as you like. Esc / ⌘↓ close the panel entirely.
+    private func closeAgenda() {
+        guard agendaMode else { return }
+        withAnimation(dashboardPush) { agendaMode = false }
+    }
+
     // MARK: - Notes (compose detail) — mutually exclusive with the browse list.
 
     /// Tab. Browse → compose: collapse the list first, then open notes.
@@ -740,6 +838,7 @@ struct SpotlightView: View {
             withTransaction(tx) {
                 showList = false
                 listShown = true
+                agendaMode = false   // leaving the browse list also leaves the agenda
             }
             withAnimation(.easeOut(duration: 0.18)) { expanded = false }
             collapsing = false
@@ -1078,6 +1177,523 @@ private struct UpcomingEventsView: View {
         if calendar.isDateInToday(day) { return String("Today") }
         if calendar.isDateInTomorrow(day) { return String("Tomorrow") }
         return day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+}
+
+// MARK: - Day agenda (→)
+
+/// The expanded card for the day's agenda: today's reminders and calendar events
+/// merged into one time-ordered list. Opened with → from the bar. View-only —
+/// double-click an event to open it in Calendar.
+private struct AgendaView: View {
+    /// When embedded in the dashboard panel the settings gear lives in the panel
+    /// header instead, so the agenda hides its own.
+    var showsSettingsButton = true
+
+    @ObservedObject private var userPreferences = UserPreferences.shared
+    @State private var events: [EKEvent] = []
+    @State private var reminders: [ReminderItem] = []
+    @State private var loaded = false
+
+    private enum Entry: Identifiable {
+        case event(EKEvent)
+        case reminder(ReminderItem)
+
+        var id: String {
+            switch self {
+            case .event(let event): return "e-" + event.calendarItemIdentifier
+            case .reminder(let item): return "r-" + item.reminder.calendarItemIdentifier
+            }
+        }
+
+        /// Clock time for ordering; nil for all-day events and untimed reminders,
+        /// which sort to the top.
+        var time: Date? {
+            switch self {
+            case .event(let event): return event.isAllDay ? nil : event.startDate
+            case .reminder(let item):
+                return item.reminder.hasTime ? item.reminder.dueDateComponents?.date : nil
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .event(let event): return event.title ?? ""
+            case .reminder(let item): return item.reminder.title
+            }
+        }
+    }
+
+    private var entries: [Entry] {
+        let merged = events.map { Entry.event($0) } + reminders.map { Entry.reminder($0) }
+        return merged.sorted { lhs, rhs in
+            switch (lhs.time, rhs.time) {
+            case let (l?, r?): return l < r
+            case (nil, _?): return true
+            case (_?, nil): return false
+            case (nil, nil): return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
+        }
+    }
+
+    var body: some View {
+        content
+            .overlay(alignment: .topTrailing) {
+                if showsSettingsButton {
+                    OpenSettingButton()
+                        .padding(.trailing, 20)
+                        .padding(.top, 16)
+                }
+            }
+            .onAppear(perform: load)
+    }
+
+    private func load() {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: Date())
+        guard let end = calendar.endOfDay(for: Date()) else { return }
+        let hidden = Set(userPreferences.hiddenEventCalendarIdentifiers)
+        events = RemindersService.shared.getEvents(from: start, to: end).filter { event in
+            guard let id = event.calendar?.calendarIdentifier else { return true }
+            return !hidden.contains(id)
+        }
+        Task {
+            let items = await RemindersService.shared.getUpcomingReminders(.today)
+            await MainActor.run {
+                reminders = items
+                loaded = true
+            }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        if loaded && entries.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(.tertiary)
+                Text(String("Nothing scheduled today"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List {
+                Section(header: CalendarTitle(title: dayLabel(), color: .rmbColor(.upcomingSectionTitle))) {
+                    ForEach(entries) { entry in
+                        row(for: entry)
+                    }
+                }
+                .modifier(ListSectionModifier())
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+        }
+    }
+
+    @ViewBuilder private func row(for entry: Entry) -> some View {
+        switch entry {
+        case .event(let event): eventRow(event)
+        case .reminder(let item): reminderRow(item)
+        }
+    }
+
+    private func eventRow(_ event: EKEvent) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(color(for: event))
+                .frame(width: 3)
+                .frame(maxHeight: .infinity)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(event.title ?? String("(No Title)"))
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(timeLabel(event))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let calendarTitle = event.calendar?.title {
+                    Text(calendarTitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { openInCalendar(event) }
+        .help(String("Double-click to open in Calendar"))
+    }
+
+    private func reminderRow(_ item: ReminderItem) -> some View {
+        let reminder = item.reminder
+        let dueColor: Color = reminder.isExpired ? .red : .secondary
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "circle")
+                .font(.system(size: 12))
+                .foregroundColor(reminderColor(reminder))
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(reminder.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    if let dateDescription = reminder.relativeDateDescription {
+                        Text(dateDescription)
+                            .font(.system(size: 11))
+                            .foregroundColor(dueColor)
+                            .lineLimit(1)
+                    }
+                }
+                Text(reminder.calendar.title)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .contentShape(Rectangle())
+    }
+
+    private func color(for event: EKEvent) -> Color {
+        if let cgColor = event.calendar?.color {
+            return Color(cgColor)
+        }
+        return .gray
+    }
+
+    private func reminderColor(_ reminder: EKReminder) -> Color {
+        if let cgColor = reminder.calendar?.color {
+            return Color(cgColor)
+        }
+        return .gray
+    }
+
+    private func timeLabel(_ event: EKEvent) -> String {
+        if event.isAllDay { return String("All day") }
+        return event.startDate.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func dayLabel() -> String {
+        Date().formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+    }
+
+    private func openInCalendar(_ event: EKEvent) {
+        if let url = URL(string: "ical://ekevent/\(event.calendarItemIdentifier)?method=show&options=more") {
+            NSWorkspace.shared.open(url)
+        }
+        AppDelegate.shared.closeMainWindow()
+    }
+}
+
+// MARK: - Tag Planner (→)
+
+/// The → Planner: reminders grouped under chosen tags as collapsible sections,
+/// with a compact Momentum strip pinned at the bottom. Rows are real
+/// `ReminderItemView`s, so complete / swipe-to-postpone / edit all work here.
+private struct TagPlannerView: View {
+    @ObservedObject private var userPreferences = UserPreferences.shared
+    @State private var tagLists: [TagReminderList] = []
+    @State private var allTags: [Tag] = []
+    @State private var completedToday = 0
+    @State private var streak = 0
+    @State private var loaded = false
+    @State private var appHasPopoverOpen = false
+    @State private var hoveredSectionID: String?
+
+    /// The tags to show as sections: the user's chosen ones (in their order), or —
+    /// if they haven't curated any — every tag they have.
+    private var displayedTagLists: [TagReminderList] {
+        guard !userPreferences.plannerTags.isEmpty else { return tagLists }
+        return userPreferences.plannerTags.compactMap { name in
+            tagLists.first { $0.tag.name.lowercased() == name.lowercased() }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider()
+            momentumStrip
+        }
+        .environment(\.appHasPopoverOpen, $appHasPopoverOpen)
+        .environmentObject(CopyShortcutCoordinator())
+        .onAppear(perform: load)
+        .onReceive(NotificationCenter.default.publisher(for: .remindersDataShouldUpdate)) { _ in load() }
+    }
+
+    // MARK: Header
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Text(String("Planner"))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+            Spacer()
+            tagMenu
+            OpenSettingButton()
+        }
+        .padding(.horizontal, 20)
+        .frame(height: SpotlightMetrics.fieldRowHeight)
+    }
+
+    private var tagMenu: some View {
+        Menu {
+            if allTags.isEmpty {
+                Text(String("No tags yet"))
+            } else {
+                Section(String("Plan by")) {
+                    ForEach(allTags) { tag in
+                        Toggle(isOn: binding(for: tag)) { Text("# \(tag.name)") }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(String("Choose which tags to plan by"))
+    }
+
+    private func binding(for tag: Tag) -> Binding<Bool> {
+        Binding(
+            get: {
+                userPreferences.plannerTags.isEmpty
+                    || userPreferences.plannerTags.contains { $0.lowercased() == tag.name.lowercased() }
+            },
+            set: { include in
+                // First explicit choice starts from "everything", then edits from there.
+                var tags = userPreferences.plannerTags.isEmpty ? allTags.map(\.name) : userPreferences.plannerTags
+                if include {
+                    if !tags.contains(where: { $0.lowercased() == tag.name.lowercased() }) {
+                        tags.append(tag.name)
+                    }
+                } else {
+                    tags.removeAll { $0.lowercased() == tag.name.lowercased() }
+                }
+                userPreferences.plannerTags = tags
+            }
+        )
+    }
+
+    // MARK: Content
+
+    @ViewBuilder private var content: some View {
+        if loaded && displayedTagLists.isEmpty {
+            emptyState
+        } else {
+            List {
+                ForEach(displayedTagLists) { list in
+                    let collapsed = isCollapsed(list)
+                    Section(header: sectionHeader(list, collapsed: collapsed)) {
+                        if !collapsed {
+                            if list.reminders.isEmpty {
+                                Text(String("Nothing here yet"))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            ForEach(list.reminders) { item in
+                                ReminderItemView(reminderItem: item, showCalendarTitle: true)
+                            }
+                        }
+                    }
+                    .modifier(ListSectionModifier())
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "number")
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(.tertiary)
+            Text(String("Tag reminders with # to plan by tag"))
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 30)
+    }
+
+    private func sectionHeader(_ list: TagReminderList, collapsed: Bool) -> some View {
+        let color = Color.rmbColor(.tagHighlight)
+        return HStack(spacing: 6) {
+            Button {
+                toggleCollapse(list)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(color.opacity(0.85))
+                        .rotationEffect(.degrees(collapsed ? 0 : 90))
+                    Text("# \(list.tag.name)")
+                        .font(.headline)
+                        .foregroundColor(color)
+                    Text("\(list.reminders.count)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Reorder controls — revealed on hover, write the order into plannerTags.
+            HStack(spacing: 3) {
+                Button { moveTag(list, by: -1) } label: {
+                    Image(systemName: "chevron.up").font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .disabled(isFirst(list))
+                Button { moveTag(list, by: 1) } label: {
+                    Image(systemName: "chevron.down").font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .disabled(isLast(list))
+            }
+            .foregroundStyle(.secondary)
+            .opacity(hoveredSectionID == list.id ? 1 : 0)
+            .help(String("Reorder this section"))
+        }
+        .onHover { hovering in
+            if hovering {
+                hoveredSectionID = list.id
+            } else if hoveredSectionID == list.id {
+                hoveredSectionID = nil
+            }
+        }
+    }
+
+    private func isFirst(_ list: TagReminderList) -> Bool { displayedTagLists.first?.id == list.id }
+    private func isLast(_ list: TagReminderList) -> Bool { displayedTagLists.last?.id == list.id }
+
+    /// Move a tag section up or down. Seeds `plannerTags` from the current display
+    /// order the first time (when nothing's been curated yet), then reorders it.
+    private func moveTag(_ list: TagReminderList, by offset: Int) {
+        var order = userPreferences.plannerTags.isEmpty
+            ? displayedTagLists.map(\.tag.name)
+            : userPreferences.plannerTags
+        guard let index = order.firstIndex(where: { $0.lowercased() == list.tag.name.lowercased() }) else { return }
+        let target = index + offset
+        guard target >= 0, target < order.count else { return }
+        order.swapAt(index, target)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            userPreferences.plannerTags = order
+        }
+    }
+
+    // MARK: Momentum strip
+
+    private var momentumStrip: some View {
+        HStack(spacing: 14) {
+            HStack(spacing: 5) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(streak > 0 ? Color.orange : Color.secondary)
+                Text("\(streak)").font(.system(size: 14, weight: .semibold))
+                Text(String("day streak")).font(.system(size: 13)).foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                Text("\(completedToday)").font(.system(size: 14, weight: .semibold))
+                Text(String("done today")).font(.system(size: 13)).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 46)
+    }
+
+    // MARK: Collapse (persisted, shared prefs; distinct "planner-" keys)
+
+    private func collapseKey(_ list: TagReminderList) -> String { "planner-\(list.id)" }
+
+    private func isCollapsed(_ list: TagReminderList) -> Bool {
+        userPreferences.collapsedReminderSections.contains(collapseKey(list))
+    }
+
+    private func toggleCollapse(_ list: TagReminderList) {
+        let key = collapseKey(list)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if let index = userPreferences.collapsedReminderSections.firstIndex(of: key) {
+                userPreferences.collapsedReminderSections.remove(at: index)
+            } else {
+                userPreferences.collapsedReminderSections.append(key)
+            }
+        }
+    }
+
+    // MARK: Load
+
+    private func load() {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        let since = calendar.date(byAdding: .day, value: -60, to: startOfToday) ?? startOfToday
+        Task {
+            let tags = await RemindersService.shared.getAllTags()
+            let lists = await RemindersService.shared.getReminders(byTags: tags, calendarIdentifiers: nil)
+            let done = await RemindersService.shared.getCompletedReminders(since: since)
+            await MainActor.run {
+                allTags = tags
+                tagLists = lists
+                computeMomentum(done, startOfToday: startOfToday)
+                loaded = true
+            }
+        }
+    }
+
+    private func computeMomentum(_ done: [EKReminder], startOfToday: Date) {
+        let calendar = Calendar.current
+        completedToday = done.filter {
+            guard let date = $0.completionDate else { return false }
+            return calendar.isDate(date, inSameDayAs: startOfToday)
+        }.count
+
+        var completedDays = Set<Date>()
+        for reminder in done {
+            if let date = reminder.completionDate {
+                completedDays.insert(calendar.startOfDay(for: date))
+            }
+        }
+        // Count consecutive completed days ending today (or yesterday, so the streak
+        // stays "alive" before you've finished anything today).
+        var day = completedDays.contains(startOfToday)
+            ? startOfToday
+            : (calendar.date(byAdding: .day, value: -1, to: startOfToday) ?? startOfToday)
+        var count = 0
+        while completedDays.contains(day) {
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        streak = count
     }
 }
 
