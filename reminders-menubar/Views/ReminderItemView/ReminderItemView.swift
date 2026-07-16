@@ -272,10 +272,13 @@ struct ReminderItemView: View {
     /// quick actions. Anchors off the current due date (or now if it has none).
     private func postpone(_ component: Calendar.Component, _ value: Int) {
         let reminder = reminderItem.reminder
-        let base = reminder.dueDateComponents?.date ?? Date()
+        // An hour offset only makes sense from a clock time. If the reminder has no
+        // time (date-only, so its due date resolves to midnight), "+1 hour" off
+        // midnight would land at 1 AM — anchor to now instead so it means "an hour
+        // from now". Day/week keep whatever the reminder already had.
+        let hourFromUntimed = component == .hour && !reminder.hasTime
+        let base = hourFromUntimed ? Date() : (reminder.dueDateComponents?.date ?? Date())
         guard let newDate = Calendar.current.date(byAdding: component, value: value, to: base) else { return }
-        // An hour offset only makes sense with a clock time; day/week keep whatever
-        // the reminder already had (a date-only reminder stays date-only).
         let withTime = component == .hour ? true : reminder.hasTime
         reminder.removeDueDateAndAlarms()
         reminder.addDueDateAndAlarm(for: newDate, withTime: withTime)

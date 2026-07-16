@@ -81,14 +81,6 @@ class RemindersService {
         return eventStore.events(matching: predicate).sorted { $0.startDate < $1.startDate }
     }
 
-    /// Events overlapping an explicit window (used by the day agenda, which needs
-    /// the whole day — including events earlier than "now").
-    func getEvents(from start: Date, to end: Date) -> [EKEvent] {
-        guard isCalendarAuthorized else { return [] }
-        let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: nil)
-        return eventStore.events(matching: predicate).sorted { $0.startDate < $1.startDate }
-    }
-
     /// Creates a calendar event from the parsed entry. When a time was parsed the
     /// event runs one hour from that time; otherwise it's an all-day event on the
     /// parsed (or current) day.
