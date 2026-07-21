@@ -4,6 +4,12 @@ class DateParser {
     static let shared = DateParser()
     
     private let detector: NSDataDetector?
+
+    /// Regex alternation matching a count as digits or spelled out ("6" or "six"),
+    /// up to twelve. Shared by the relative-date parsers; `number(from:)` converts
+    /// whatever it captures into an Int.
+    private static let numberWords =
+        "\\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve"
     
     struct TextDateResult {
         // A date can come from more than one token (e.g. "tomorrow … 9am"), so we
@@ -161,17 +167,17 @@ class DateParser {
     /// Parses "in N minutes / hours / days / weeks / months" → now + offset.
     /// Minutes/hours set a precise time; larger units land on the day.
     private func relativeDate(from textString: String) -> DateParserResult? {
-        let pattern = "\\bin\\s+(\\d+)\\s+(minutes?|mins?|hours?|hrs?|days?|weeks?|months?)\\b"
+        let pattern = "\\bin\\s+(\(Self.numberWords))\\s+(minutes?|mins?|hours?|hrs?|days?|weeks?|months?)\\b"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
             return nil
         }
         let nsRange = NSRange(textString.startIndex..., in: textString)
         guard let match = regex.firstMatch(in: textString, options: [], range: nsRange),
               let amountRange = Range(match.range(at: 1), in: textString),
-              let unitRange = Range(match.range(at: 2), in: textString),
-              let amount = Int(textString[amountRange]) else {
+              let unitRange = Range(match.range(at: 2), in: textString) else {
             return nil
         }
+        let amount = number(from: String(textString[amountRange]))
 
         let unit = textString[unitRange].lowercased()
         let component: Calendar.Component
@@ -210,7 +216,7 @@ class DateParser {
     /// "before/by monday" → that date (offset 0). The base date is parsed by the
     /// normal path, so any date form works after the preposition.
     private func relativeOffsetDate(from textString: String) -> DateParserResult? {
-        let prefix = "\\b(?:(\\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+        let prefix = "\\b(?:(\(Self.numberWords))"
             + "\\s+(day|week|month|year)s?\\s+)?(before|after|prior to|ahead of|by)\\s+"
         guard let regex = try? NSRegularExpression(pattern: prefix, options: [.caseInsensitive]) else {
             return nil
