@@ -61,20 +61,29 @@ class CalendarParser {
         return validInitialChars.contains(char)
     }
     
+    /// The reminder-list `@key` shortcut token in the text, if any (case 0 of
+    /// `getCalendar`). Exposed on its own so the UI can tell a typed shortcut
+    /// belongs to Reminders (vs. an event-calendar shortcut) and switch modes.
+    static func shortcutMatch(in textString: String) -> TextCalendarResult? {
+        let byShortcut = CalendarParser.shared.shortcutCalendarsByKey
+        guard !byShortcut.isEmpty else { return nil }
+        let words = textString.split(separator: " ")
+        guard let match = words.first(where: {
+            $0.hasPrefix("@") && byShortcut[$0.dropFirst().lowercased()] != nil
+        }) else { return nil }
+        let range = NSRange(match.startIndex..<match.endIndex, in: textString)
+        return TextCalendarResult(range: range, string: String(match), calendar: byShortcut[match.dropFirst().lowercased()])
+    }
+
     static func getCalendar(from textString: String) -> TextCalendarResult? {
         let byTitle = CalendarParser.shared.calendarsByTitle
-        let byShortcut = CalendarParser.shared.shortcutCalendarsByKey
         let words = textString.split(separator: " ")
 
         // 0. User-defined "@" shortcut: e.g. "@p" → the chosen list. Checked
         //    before the title forms so a shortcut always wins over a same-named
         //    list, and so "@p" is the token stripped from the title.
-        if !byShortcut.isEmpty,
-           let match = words.first(where: {
-               $0.hasPrefix("@") && byShortcut[$0.dropFirst().lowercased()] != nil
-           }) {
-            let range = NSRange(match.startIndex..<match.endIndex, in: textString)
-            return TextCalendarResult(range: range, string: String(match), calendar: byShortcut[match.dropFirst().lowercased()])
+        if let shortcut = shortcutMatch(in: textString) {
+            return shortcut
         }
 
         // 1. Explicit prefix form: "/List" or "@List".

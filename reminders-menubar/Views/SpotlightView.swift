@@ -149,6 +149,7 @@ struct SpotlightView: View {
         // Typing means you're committing to writing → reverse the list back out.
         .onChange(of: rmbReminder.title) { _ in
             if expanded && !didCreate { collapse() }
+            autoSwitchModeForShortcut()
         }
         .onChange(of: expanded) { _ in syncHeight() }
         // Resize for the chips row ONLY when collapsed (no list present). While
@@ -447,6 +448,22 @@ struct SpotlightView: View {
     private func performUndo() {
         UndoCoordinator.shared.performUndo()
         NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+    }
+
+    /// `@` shortcuts are mutually exclusive between the two modes: a key is either a
+    /// Reminders-list shortcut or an event-calendar shortcut. So if you're in one
+    /// mode and type a shortcut that only means something in the other, flip to it
+    /// automatically (e.g. typing "@e" in Reminders jumps to Calendar). A key that
+    /// somehow means something in both never triggers a switch, so it can't ping-pong.
+    private func autoSwitchModeForShortcut() {
+        let title = rmbReminder.title
+        let isEventShortcut = EventCalendarParser.match(in: title) != nil
+        let isListShortcut = CalendarParser.shortcutMatch(in: title) != nil
+        if !eventMode, isEventShortcut, !isListShortcut {
+            switchMode(toEvent: true, fromAbove: false)
+        } else if eventMode, isListShortcut, !isEventShortcut {
+            switchMode(toEvent: false, fromAbove: false)
+        }
     }
 
     private func switchMode(toEvent: Bool, fromAbove: Bool) {
