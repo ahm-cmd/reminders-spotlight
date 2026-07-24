@@ -211,13 +211,14 @@ class DateParser {
         )
     }
 
-    /// Parses "[N unit] before/after/by <date>" → the base date shifted by the
-    /// offset. "one week before august 15" → Aug 15 minus a week; a bare
-    /// "before/by monday" → that date (offset 0). The base date is parsed by the
-    /// normal path, so any date form works after the preposition.
+    /// Parses "[N unit] before/after/from/by <date>" → the base date shifted by the
+    /// offset. "one week before august 15" → Aug 15 minus a week; "six months from
+    /// today" → today plus six months; a bare "before/by monday" → that date
+    /// (offset 0). The base date is parsed by the normal path, so any date form
+    /// works after the preposition.
     private func relativeOffsetDate(from textString: String) -> DateParserResult? {
         let prefix = "\\b(?:(\(Self.numberWords))"
-            + "\\s+(day|week|month|year)s?\\s+)?(before|after|prior to|ahead of|by)\\s+"
+            + "\\s+(day|week|month|year)s?\\s+)?(before|after|from|prior to|ahead of|by)\\s+"
         guard let regex = try? NSRegularExpression(pattern: prefix, options: [.caseInsensitive]) else {
             return nil
         }
@@ -246,7 +247,10 @@ class DateParser {
             component = calendarComponent(from: String(textString[unitRange]))
         }
         let preposition = Range(match.range(at: 3), in: textString).map { String(textString[$0]).lowercased() } ?? ""
-        let signedAmount = preposition == "after" ? amount : -amount
+        // "after"/"from" shift forward ("six months from today"); "before"/"prior
+        // to"/"ahead of" shift back; "by" carries no quantity, so it lands on the date.
+        let isForward = preposition == "after" || preposition == "from"
+        let signedAmount = isForward ? amount : -amount
         let shiftedDate = Calendar.current.date(byAdding: component, value: signedAmount, to: base.date) ?? base.date
 
         // Highlight/strip from the prefix start through the end of the base date,
