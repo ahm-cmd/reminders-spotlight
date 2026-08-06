@@ -129,6 +129,7 @@ struct SpotlightView: View {
             if userPreferences.autoSuggestToday {
                 rmbReminder.setIsAutoSuggestingTodayForCreation()
             }
+            restoreDraftIfAny()
             DispatchQueue.main.async { focusTrigger = UUID() }
             syncHeight()
             installModeKeyMonitor()
@@ -136,11 +137,23 @@ struct SpotlightView: View {
         .onDisappear {
             if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
             keyMonitor = nil
+            // Keep a half-typed entry briefly so closing the panel to go check
+            // another app doesn't lose it. A just-saved entry isn't a draft.
+            if !didCreate {
+                DraftCoordinator.shared.save(
+                    title: rmbReminder.title,
+                    notes: rmbReminder.notes,
+                    isEvent: eventMode
+                )
+            }
         }
         // Moving the mouse (anywhere) means you want to browse → show the list.
         .onReceive(NotificationCenter.default.publisher(for: .mainWindowDidDetectMouseMove)) { _ in
             // Composing notes suppresses the ambient browse-on-mouse-move (option a).
-            if !expanded && !showNotes { expand() }
+            // Once an entry is saved the panel is already bubbling off, and people
+            // typically grab the mouse right after hitting Return — expanding now
+            // would flash the list open for a moment before the panel closes.
+            if !expanded && !showNotes && !didCreate && !dismissing { expand() }
         }
         // Quietly rotate the placeholder examples while the field sits empty.
         .onReceive(Timer.publish(every: 2.5, on: .main, in: .common).autoconnect()) { _ in
@@ -975,6 +988,19 @@ struct SpotlightView: View {
         DispatchQueue.main.async { focusTrigger = UUID() }
     }
 
+    /// Bring back a recently abandoned entry (see DraftCoordinator). Assigning the
+    /// title re-runs the parsers, so dates / lists / tags / priority light up again
+    /// exactly as if it had just been typed.
+    private func restoreDraftIfAny() {
+        guard let draft = DraftCoordinator.shared.take() else { return }
+        // Set the mode directly rather than via switchMode: the panel is appearing
+        // fresh, so there's no transition to animate — it should just open in the
+        // mode the draft was written in.
+        eventMode = draft.isEvent
+        rmbReminder.notes = draft.notes
+        rmbReminder.title = draft.title
+    }
+
     private func finalTitle() -> String {
         var title = rmbReminder.title
         // Priority (!/!!/!!!) applies only to reminders, so only strip it there.
@@ -1006,7 +1032,11 @@ struct SpotlightView: View {
                 title = title.replacingOccurrences(of: token, with: "")
             }
         }
-        return title.trimmingCharacters(in: .whitespaces)
+        // Stripping a token from the middle leaves a double space behind, which
+        // trimming (ends only) won't catch — collapse runs of whitespace too.
+        return title
+            .replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
     }
 }
 

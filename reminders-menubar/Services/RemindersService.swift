@@ -321,6 +321,58 @@ class RemindersService {
     }
 }
 
+/// Keeps a half-typed entry alive across a panel close, so stepping away to check
+/// another app and re-opening the Spotlight resumes where you left off. Singleton
+/// because the panel (and all its SwiftUI state) is rebuilt on every open.
+///
+/// Drafts are deliberately short-lived — after `lifetime` a forgotten entry is
+/// dropped rather than resurfacing much later, when it's no longer what you meant
+/// to write.
+@MainActor
+final class DraftCoordinator {
+    static let shared = DraftCoordinator()
+
+    struct Draft {
+        let title: String
+        let notes: String?
+        let isEvent: Bool
+    }
+
+    /// How long a draft survives after the panel closes.
+    private let lifetime: TimeInterval = 60
+
+    private var draft: Draft?
+    private var savedAt: Date?
+
+    private init() {}
+
+    /// Stash the in-progress entry. An empty title means there's nothing worth
+    /// keeping, which also clears any older draft.
+    func save(title: String, notes: String?, isEvent: Bool) {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            clear()
+            return
+        }
+        draft = Draft(title: title, notes: notes, isEvent: isEvent)
+        savedAt = Date()
+    }
+
+    /// The pending draft if one is still fresh, consuming it either way (an expired
+    /// draft is discarded rather than left to linger).
+    func take() -> Draft? {
+        defer { clear() }
+        guard let draft, let savedAt, Date().timeIntervalSince(savedAt) < lifetime else {
+            return nil
+        }
+        return draft
+    }
+
+    func clear() {
+        draft = nil
+        savedAt = nil
+    }
+}
+
 /// Holds the most recent reversible action (a created item to delete, or a
 /// completed reminder to un-complete) so ⌘Z can undo it. Singleton so it
 /// survives the panel closing and reopening.

@@ -272,7 +272,38 @@ class RecurrenceParser {
                            label: "until \(weekday.label)", range: found.range, string: found.string)
             }
         }
+        // "until <date>" → ends on that date ("until Aug 14", "until 12/31"). The
+        // date itself is parsed by DateParser, so any date form works after the
+        // keyword. Weekday forms are handled above, which keeps their nicer label.
+        if let end = endDate(in: text) {
+            return end
+        }
         return nil
+    }
+
+    /// Parses an "until/through/till <date>" end clause by handing everything after
+    /// the keyword to DateParser, then spanning the strip range from the keyword
+    /// through the end of the matched date (so the whole phrase leaves the title).
+    private static func endDate(in text: String) -> End? {
+        guard let keyword = firstMatch("\\b(?:until|through|thru|til|till)\\s+", in: text) else {
+            return nil
+        }
+        let full = NSRange(text.startIndex..., in: text)
+        let keywordEnd = keyword.range.location + keyword.range.length
+        guard keywordEnd < full.length,
+              let restRange = Range(NSRange(location: keywordEnd, length: full.length - keywordEnd), in: text),
+              let parsed = DateParser.shared.getDate(from: String(text[restRange])),
+              let parsedRange = parsed.textDateResult.ranges.first else {
+            return nil
+        }
+        let length = keyword.range.length + parsedRange.location + parsedRange.length
+        let range = NSRange(location: keyword.range.location, length: length)
+        return End(
+            recurrenceEnd: EKRecurrenceEnd(end: parsed.date),
+            label: "until \(parsed.date.formatted(.dateTime.month(.abbreviated).day()))",
+            range: range,
+            string: text.substring(in: range)
+        )
     }
 
     private static func makeRule(frequency: EKRecurrenceFrequency, days: [EKWeekday]?, interval: Int, end: EKRecurrenceEnd?) -> EKRecurrenceRule {
