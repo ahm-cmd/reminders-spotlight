@@ -337,6 +337,151 @@ class RemindersService {
     }
 }
 
+/// Loads and holds the Planner's data so the board can render the instant it's
+/// opened.
+///
+/// Gathering it costs ~120ms of mostly main-thread work (EventKit reads tags
+/// through Objective-C private selectors, once per reminder), which is very
+/// visible if it starts when → is pressed: the board arrives empty and the push
+/// animation stutters. Two things fix that — the cache outlives the panel (which
+/// is rebuilt on every open), and it's warmed shortly after the bar appears, well
+/// before → is likely to be pressed.
+@MainActor
+final class PlannerCache: ObservableObject {
+    static let shared = PlannerCache()
+
+    struct Snapshot {
+        var tags: [Tag] = []
+        var tagLists: [TagReminderList] = []
+        var untagged: [ReminderItem] = []
+        var completedToday = 0
+        var streak = 0
+        var isLoaded = false
+    }
+
+    @Published private(set) var snapshot = Snapshot()
+
+    private var refreshTask: Task<Void, Never>?
+    private var refreshAgain = false
+    private var lastLoaded: Date?
+
+    private init() {}
+
+    /// Refresh only if the snapshot has gone stale. Opening the board right after
+    /// the bar warmed it would otherwise repeat the whole ~120ms read on the main
+    /// thread, during the push animation — the exact stutter the cache exists to
+    /// avoid. Mutations call `refresh()` directly and always re-read.
+    func refreshIfStale(maxAge: TimeInterval = 10) {
+        guard let lastLoaded, Date().timeIntervalSince(lastLoaded) < maxAge else {
+            refresh()
+            return
+        }
+    }
+
+    /// Refresh the snapshot. Overlapping calls coalesce: a request arriving while a
+    /// pass is in flight queues exactly one more, so a burst of drops re-reads the
+    /// store once at the end rather than once per drop.
+    func refresh() {
+        guard refreshTask == nil else {
+            refreshAgain = true
+            return
+        }
+        refreshTask = Task { @MainActor in
+            await reload()
+            refreshTask = nil
+            if refreshAgain {
+                refreshAgain = false
+                refresh()
+            }
+        }
+    }
+
+    private func reload() async {
+        guard #available(macOS 12, *) else { return }
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        let since = calendar.date(byAdding: .day, value: -60, to: startOfToday) ?? startOfToday
+
+        // Tags and completions don't depend on each other, so overlap them; the
+        // two tag-scoped queries need the tag list and follow.
+        async let tagsTask = RemindersService.shared.getAllTags()
+        async let doneTask = RemindersService.shared.getCompletedReminders(since: since)
+        let tags = await tagsTask
+        let done = await doneTask
+
+        async let listsTask = RemindersService.shared.getReminders(byTags: tags, calendarIdentifiers: nil)
+        async let unsortedTask = RemindersService.shared.getReminders(withoutTags: Self.rowTags(from: tags))
+        let lists = await listsTask
+        let unsorted = await unsortedTask
+
+        let momentum = Self.momentum(from: done, startOfToday: startOfToday)
+        snapshot = Snapshot(
+            tags: tags,
+            tagLists: lists,
+            untagged: unsorted,
+            completedToday: momentum.today,
+            streak: momentum.streak,
+            isLoaded: true
+        )
+        lastLoaded = Date()
+        pruneItemOrder(keeping: lists, and: unsorted)
+    }
+
+    /// The tags acting as board rows — the curated order if there is one, else every
+    /// tag. The unsorted tray is everything carrying none of them.
+    private static func rowTags(from all: [Tag]) -> [Tag] {
+        let curated = UserPreferences.shared.plannerTags
+        guard !curated.isEmpty else { return all }
+        return curated.compactMap { name in
+            all.first { $0.name.lowercased() == name.lowercased() }
+        }
+    }
+
+    private static func momentum(from done: [EKReminder], startOfToday: Date) -> (today: Int, streak: Int) {
+        let calendar = Calendar.current
+        let today = done.filter {
+            guard let date = $0.completionDate else { return false }
+            return calendar.isDate(date, inSameDayAs: startOfToday)
+        }.count
+
+        var completedDays = Set<Date>()
+        for reminder in done {
+            if let date = reminder.completionDate {
+                completedDays.insert(calendar.startOfDay(for: date))
+            }
+        }
+        // Count consecutive completed days ending today (or yesterday, so the streak
+        // stays "alive" before you've finished anything today).
+        var day = completedDays.contains(startOfToday)
+            ? startOfToday
+            : (calendar.date(byAdding: .day, value: -1, to: startOfToday) ?? startOfToday)
+        var streak = 0
+        while completedDays.contains(day) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        return (today, streak)
+    }
+
+    /// Drop hand-placed positions for reminders that no longer exist (completed,
+    /// deleted), so the stored order doesn't grow without bound.
+    private func pruneItemOrder(keeping lists: [TagReminderList], and unsorted: [ReminderItem]) {
+        let stored = UserPreferences.shared.plannerItemOrder
+        guard !stored.isEmpty else { return }
+        var alive = Set(unsorted.map { $0.reminder.calendarItemIdentifier })
+        for list in lists {
+            for item in list.reminders {
+                alive.insert(item.reminder.calendarItemIdentifier)
+            }
+        }
+        let pruned = stored.filter { alive.contains($0) }
+        if pruned.count != stored.count {
+            UserPreferences.shared.plannerItemOrder = pruned
+        }
+    }
+}
+
 /// Keeps a half-typed entry alive across a panel close, so stepping away to check
 /// another app and re-opening the Spotlight resumes where you left off. Singleton
 /// because the panel (and all its SwiftUI state) is rebuilt on every open.

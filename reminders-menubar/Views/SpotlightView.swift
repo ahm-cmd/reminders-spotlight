@@ -133,6 +133,16 @@ struct SpotlightView: View {
             DispatchQueue.main.async { focusTrigger = UUID() }
             syncHeight()
             installModeKeyMonitor()
+            // Warm the Planner while the bar is just sitting there, so → finds the
+            // board already built. Deliberately after the open animation rather than
+            // during it — the read is ~120ms of main-thread work, which would
+            // otherwise just move the stutter from the switch to the open.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                // → only opens the board from an empty field, so if typing has
+                // started this read would be pure main-thread cost for nothing.
+                guard rmbReminder.title.isEmpty else { return }
+                PlannerCache.shared.refresh()
+            }
         }
         .onDisappear {
             if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
@@ -1267,12 +1277,10 @@ private enum PlannerDrag {
 /// stays pinned at the bottom.
 private struct TagPlannerView: View {
     @ObservedObject private var userPreferences = UserPreferences.shared
-    @State private var tagLists: [TagReminderList] = []
-    @State private var untagged: [ReminderItem] = []
-    @State private var allTags: [Tag] = []
-    @State private var completedToday = 0
-    @State private var streak = 0
-    @State private var loaded = false
+    // The board's data lives in PlannerCache, not here: the panel is rebuilt on
+    // every open, and re-reading the store at that moment is what made switching
+    // to the Dashboard lag.
+    @ObservedObject private var cache = PlannerCache.shared
     @State private var appHasPopoverOpen = false
     @State private var dropTarget: String?      // cell currently under an item drag
     @State private var insertTarget: String?    // row the item would be inserted above
@@ -1285,6 +1293,13 @@ private struct TagPlannerView: View {
     private let rowMinHeight: CGFloat = 66
     private let collapsedRowHeight: CGFloat = 30
     private var reorderSpring: Animation { .spring(response: 0.32, dampingFraction: 0.82) }
+
+    private var tagLists: [TagReminderList] { cache.snapshot.tagLists }
+    private var untagged: [ReminderItem] { cache.snapshot.untagged }
+    private var allTags: [Tag] { cache.snapshot.tags }
+    private var completedToday: Int { cache.snapshot.completedToday }
+    private var streak: Int { cache.snapshot.streak }
+    private var loaded: Bool { cache.snapshot.isLoaded }
 
     /// The tags to show as rows: the user's chosen ones (in their order), or — if
     /// they haven't curated any — every tag they have.
@@ -1309,7 +1324,7 @@ private struct TagPlannerView: View {
         }
         .environment(\.appHasPopoverOpen, $appHasPopoverOpen)
         .environmentObject(CopyShortcutCoordinator())
-        .onAppear(perform: load)
+        .onAppear { cache.refreshIfStale() }
         .onReceive(NotificationCenter.default.publisher(for: .remindersDataShouldUpdate)) { _ in load() }
         // Also follow the store itself: completing a reminder (and any edit made in
         // Apple's Reminders app while the panel is open) fires EKEventStoreChanged
@@ -1816,79 +1831,10 @@ private struct TagPlannerView: View {
 
     // MARK: Load
 
+    /// Ask the cache to re-read the store. Cheap to call — overlapping requests
+    /// coalesce, and the board keeps showing the previous snapshot meanwhile.
     private func load() {
-        let calendar = Calendar.current
-        let startOfToday = calendar.startOfDay(for: Date())
-        let since = calendar.date(byAdding: .day, value: -60, to: startOfToday) ?? startOfToday
-        Task {
-            let tags = await RemindersService.shared.getAllTags()
-            let lists = await RemindersService.shared.getReminders(byTags: tags, calendarIdentifiers: nil)
-            let done = await RemindersService.shared.getCompletedReminders(since: since)
-            // The tray excludes whatever is a row, so an item never appears both in
-            // the grid and as unsorted.
-            let rowTags = rowTags(from: tags)
-            let unsorted = await RemindersService.shared.getReminders(withoutTags: rowTags)
-            await MainActor.run {
-                allTags = tags
-                tagLists = lists
-                untagged = unsorted
-                pruneItemOrder(keeping: lists, and: unsorted)
-                computeMomentum(done, startOfToday: startOfToday)
-                loaded = true
-            }
-        }
-    }
-
-    /// Drop hand-placed positions for reminders that no longer exist (completed,
-    /// deleted), so the stored order doesn't grow without bound.
-    private func pruneItemOrder(keeping lists: [TagReminderList], and unsorted: [ReminderItem]) {
-        guard !userPreferences.plannerItemOrder.isEmpty else { return }
-        var alive = Set(unsorted.map { $0.reminder.calendarItemIdentifier })
-        for list in lists {
-            for item in list.reminders {
-                alive.insert(item.reminder.calendarItemIdentifier)
-            }
-        }
-        let pruned = userPreferences.plannerItemOrder.filter { alive.contains($0) }
-        if pruned.count != userPreferences.plannerItemOrder.count {
-            userPreferences.plannerItemOrder = pruned
-        }
-    }
-
-    /// The tags acting as rows right now — the curated order if there is one, else
-    /// every tag.
-    private func rowTags(from all: [Tag]) -> [Tag] {
-        guard !userPreferences.plannerTags.isEmpty else { return all }
-        return userPreferences.plannerTags.compactMap { name in
-            all.first { $0.name.lowercased() == name.lowercased() }
-        }
-    }
-
-    private func computeMomentum(_ done: [EKReminder], startOfToday: Date) {
-        let calendar = Calendar.current
-        completedToday = done.filter {
-            guard let date = $0.completionDate else { return false }
-            return calendar.isDate(date, inSameDayAs: startOfToday)
-        }.count
-
-        var completedDays = Set<Date>()
-        for reminder in done {
-            if let date = reminder.completionDate {
-                completedDays.insert(calendar.startOfDay(for: date))
-            }
-        }
-        // Count consecutive completed days ending today (or yesterday, so the streak
-        // stays "alive" before you've finished anything today).
-        var day = completedDays.contains(startOfToday)
-            ? startOfToday
-            : (calendar.date(byAdding: .day, value: -1, to: startOfToday) ?? startOfToday)
-        var count = 0
-        while completedDays.contains(day) {
-            count += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
-            day = previous
-        }
-        streak = count
+        cache.refresh()
     }
 }
 
@@ -2018,3 +1964,5 @@ private struct ColoredChipBackground: ViewModifier {
             )
     }
 }
+
+
