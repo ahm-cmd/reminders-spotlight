@@ -11,6 +11,7 @@ private enum PreferencesKeys {
     static let hiddenEventCalendarIdentifiers = "hiddenEventCalendarIdentifiers"
     static let collapsedReminderSections = "collapsedReminderSections"
     static let plannerTags = "plannerTags"
+    static let plannerItemOrder = "plannerItemOrder"
     static let autoSuggestTodayForNewReminders = "autoSuggestTodayForNewReminders"
     static let removeParsedDateFromTitle = "removeParsedDateFromTitle"
     static let rmbColorScheme = "rmbColorScheme"
@@ -176,6 +177,18 @@ class UserPreferences: ObservableObject {
     }() {
         didSet {
             UserPreferences.defaults.set(plannerTags, forKey: PreferencesKeys.plannerTags)
+        }
+    }
+
+    /// Reminder identifiers the user has hand-placed on the Planner board, in order.
+    /// Only relative order within a cell matters; anything absent falls back to
+    /// due-date order beneath the hand-placed items. Pruned on each load so
+    /// completed and deleted reminders don't accumulate.
+    @Published var plannerItemOrder: [String] = {
+        return defaults.stringArray(forKey: PreferencesKeys.plannerItemOrder) ?? []
+    }() {
+        didSet {
+            UserPreferences.defaults.set(plannerItemOrder, forKey: PreferencesKeys.plannerItemOrder)
         }
     }
 

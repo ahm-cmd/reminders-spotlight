@@ -1235,21 +1235,59 @@ private struct UpcomingEventsView: View {
 
 // MARK: - Tag Planner (→)
 
-/// The → Planner: reminders grouped under chosen tags as collapsible sections,
-/// with a compact Momentum strip pinned at the bottom. Rows are real
-/// `ReminderItemView`s, so complete / swipe-to-postpone / edit all work here.
+/// A drag payload. Both reminders and horizon rows travel as plain strings, so a
+/// prefix says which one arrived — that lets every drop target accept either and
+/// dispatch on the payload rather than needing a custom Transferable type.
+private enum PlannerDrag {
+    static let itemPrefix = "item:"
+    static let rowPrefix = "row:"
+
+    static func item(_ identifier: String) -> String { itemPrefix + identifier }
+    static func row(_ tagName: String) -> String { rowPrefix + tagName }
+
+    static func itemIdentifier(in payload: String) -> String? {
+        payload.hasPrefix(itemPrefix) ? String(payload.dropFirst(itemPrefix.count)) : nil
+    }
+
+    static func rowTagName(in payload: String) -> String? {
+        payload.hasPrefix(rowPrefix) ? String(payload.dropFirst(rowPrefix.count)) : nil
+    }
+}
+
+/// The → Planner: an Eisenhower-style board. Rows are horizon tags (#this-week,
+/// #this-month, …) in the order you choose; columns split each horizon by
+/// importance, read from the reminder's own priority. Dragging a reminder into a
+/// cell writes BOTH axes — the row's tag and the column's priority — so the board
+/// lives in Reminders itself and shows up in Apple's app too, rather than in a
+/// private database only this app can see.
+///
+/// Reading top-to-bottom still answers "how far out is this?" (the reason the
+/// Planner exists); reading left-to-right adds triage. Untagged reminders wait in
+/// the Unsorted tray so there's always something to sort, and the Momentum strip
+/// stays pinned at the bottom.
 private struct TagPlannerView: View {
     @ObservedObject private var userPreferences = UserPreferences.shared
     @State private var tagLists: [TagReminderList] = []
+    @State private var untagged: [ReminderItem] = []
     @State private var allTags: [Tag] = []
     @State private var completedToday = 0
     @State private var streak = 0
     @State private var loaded = false
     @State private var appHasPopoverOpen = false
-    @State private var hoveredSectionID: String?
+    @State private var dropTarget: String?      // cell currently under an item drag
+    @State private var insertTarget: String?    // row the item would be inserted above
+    @State private var rowDropTarget: String?   // row a dragged horizon would land on
 
-    /// The tags to show as sections: the user's chosen ones (in their order), or —
-    /// if they haven't curated any — every tag they have.
+    /// The tray is a staging area, not a second reminders list — the untagged pool
+    /// can run to hundreds, so only the most pressing few are offered at once.
+    private let unsortedLimit = 20
+    private let railWidth: CGFloat = 94
+    private let rowMinHeight: CGFloat = 66
+    private let collapsedRowHeight: CGFloat = 30
+    private var reorderSpring: Animation { .spring(response: 0.32, dampingFraction: 0.82) }
+
+    /// The tags to show as rows: the user's chosen ones (in their order), or — if
+    /// they haven't curated any — every tag they have.
     private var displayedTagLists: [TagReminderList] {
         guard !userPreferences.plannerTags.isEmpty else { return tagLists }
         return userPreferences.plannerTags.compactMap { name in
@@ -1261,8 +1299,11 @@ private struct TagPlannerView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            content
+            columnHeader
+            Divider()
+            grid
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            unsortedTray
             Divider()
             momentumStrip
         }
@@ -1270,6 +1311,14 @@ private struct TagPlannerView: View {
         .environmentObject(CopyShortcutCoordinator())
         .onAppear(perform: load)
         .onReceive(NotificationCenter.default.publisher(for: .remindersDataShouldUpdate)) { _ in load() }
+        // Also follow the store itself: completing a reminder (and any edit made in
+        // Apple's Reminders app while the panel is open) fires EKEventStoreChanged
+        // and nothing else, so without this the board keeps showing stale rows.
+        .onReceive(
+            NotificationCenter.default
+                .publisher(for: .EKEventStoreChanged)
+                .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+        ) { _ in load() }
     }
 
     // MARK: Header
@@ -1285,6 +1334,24 @@ private struct TagPlannerView: View {
         }
         .padding(.horizontal, 20)
         .frame(height: SpotlightMetrics.fieldRowHeight)
+    }
+
+    /// Column titles, aligned to the grid's rail + two cells.
+    private var columnHeader: some View {
+        HStack(spacing: 0) {
+            Color.clear.frame(width: railWidth)
+            Text(String("Important"))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 9)
+            Text(String("Normal"))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 9)
+        }
+        .frame(height: 22)
     }
 
     private var tagMenu: some View {
@@ -1326,39 +1393,179 @@ private struct TagPlannerView: View {
                     tags.removeAll { $0.lowercased() == tag.name.lowercased() }
                 }
                 userPreferences.plannerTags = tags
+                load()
             }
         )
     }
 
-    // MARK: Content
+    // MARK: Grid
 
-    @ViewBuilder private var content: some View {
+    @ViewBuilder private var grid: some View {
         if loaded && displayedTagLists.isEmpty {
             emptyState
         } else {
-            List {
-                ForEach(displayedTagLists) { list in
-                    let collapsed = isCollapsed(list)
-                    Section(header: sectionHeader(list, collapsed: collapsed)) {
-                        if !collapsed {
-                            if list.reminders.isEmpty {
-                                Text(String("Nothing here yet"))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            ForEach(list.reminders) { item in
-                                ReminderItemView(reminderItem: item, showCalendarTitle: true)
-                            }
+            // A plain ScrollView + VStack, deliberately NOT a List: several Lists
+            // mounted side by side means several NSTableViews laying out at once,
+            // which is what trips the "Update Constraints in Window" crash.
+            //
+            // Rows divide the available height rather than sitting at their minimum,
+            // so a board with two horizons fills the panel instead of stranding
+            // half of it as dead space — and every cell is a big drop target.
+            GeometryReader { geometry in
+                let rows = displayedTagLists
+                let collapsedRows = rows.filter { isCollapsed($0) }.count
+                let expandedRows = max(rows.count - collapsedRows, 1)
+                let spoken = CGFloat(collapsedRows) * collapsedRowHeight + CGFloat(rows.count)
+                let each = max(rowMinHeight, (geometry.size.height - spoken) / CGFloat(expandedRows))
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(rows) { list in
+                            gridRow(list, height: isCollapsed(list) ? collapsedRowHeight : each)
+                            Divider()
                         }
                     }
-                    .modifier(ListSectionModifier())
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
         }
+    }
+
+    private func gridRow(_ list: TagReminderList, height: CGFloat) -> some View {
+        let collapsed = isCollapsed(list)
+        return HStack(alignment: .top, spacing: 0) {
+            rail(list, collapsed: collapsed)
+                .frame(width: railWidth, alignment: .topLeading)
+            Divider()
+            cell(list, important: true, collapsed: collapsed)
+            Divider()
+            cell(list, important: false, collapsed: collapsed)
+        }
+        .frame(height: height, alignment: .top)
+        .background(rowDropTarget == list.id ? Color.accentColor.opacity(0.10) : Color.clear)
+        // A horizon dropped anywhere in this row takes this row's position. The
+        // whole row is the target, not just the rail, so it's an easy throw.
+        .dropDestination(for: String.self) { payloads, _ in
+            guard let payload = payloads.first, let name = PlannerDrag.rowTagName(in: payload) else {
+                return false
+            }
+            moveRow(named: name, toPositionOf: list)
+            return true
+        } isTargeted: { targeted in
+            if targeted {
+                rowDropTarget = list.id
+            } else if rowDropTarget == list.id {
+                rowDropTarget = nil
+            }
+        }
+    }
+
+    /// The left rail: the horizon's name and a disclosure chevron to fold the row.
+    /// Drag the label onto another row to reorder the horizons.
+    private func rail(_ list: TagReminderList, collapsed: Bool) -> some View {
+        let color = Color.rmbColor(.tagHighlight)
+        return Button {
+            toggleCollapse(list)
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(color.opacity(0.85))
+                    .rotationEffect(.degrees(collapsed ? 0 : 90))
+                Text(list.tag.name)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(color)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(String("Click to fold · drag onto another horizon to reorder"))
+        .draggable(PlannerDrag.row(list.tag.name)) {
+            Text("# \(list.tag.name)")
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .padding(.top, 7)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// One cell of the board — a horizon crossed with an importance level, and the
+    /// drop target that writes both onto whatever is dragged in.
+    private func cell(_ list: TagReminderList, important: Bool, collapsed: Bool) -> some View {
+        let items = sortedItems(list.reminders.filter { isImportant($0.reminder) == important })
+        let key = cellKey(list, important: important)
+        return VStack(alignment: .leading, spacing: 1) {
+            if collapsed {
+                if !items.isEmpty {
+                    Text("\(items.count)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+            } else {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    PlannerRow(item: item)
+                        // An insertion line shows exactly where a hand-placed item
+                        // will land, so ordering within a cell is deliberate.
+                        .overlay(alignment: .top) {
+                            if insertTarget == insertKey(key, index: index) {
+                                Rectangle()
+                                    .fill(Color.accentColor)
+                                    .frame(height: 2)
+                            }
+                        }
+                        .dropDestination(for: String.self) { payloads, _ in
+                            handleDrop(payloads.first, list: list, important: important, insertAt: index)
+                        } isTargeted: { targeted in
+                            let target = insertKey(key, index: index)
+                            if targeted {
+                                insertTarget = target
+                            } else if insertTarget == target {
+                                insertTarget = nil
+                            }
+                        }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(dropTarget == key ? Color.accentColor.opacity(0.14) : Color.clear)
+        .contentShape(Rectangle())
+        // Dropping on open space in the cell (rather than on a row) appends.
+        .dropDestination(for: String.self) { payloads, _ in
+            handleDrop(payloads.first, list: list, important: important, insertAt: nil)
+        } isTargeted: { targeted in
+            if targeted {
+                dropTarget = key
+            } else if dropTarget == key {
+                dropTarget = nil
+            }
+        }
+    }
+
+    private func cellKey(_ list: TagReminderList, important: Bool) -> String {
+        "\(list.id)|\(important)"
+    }
+
+    private func insertKey(_ cellKey: String, index: Int) -> String {
+        "\(cellKey)#\(index)"
+    }
+
+    /// Routes a payload to the right action — a horizon reorders the rows, a
+    /// reminder lands in this cell (optionally at a chosen position).
+    private func handleDrop(_ payload: String?, list: TagReminderList, important: Bool, insertAt: Int?) -> Bool {
+        guard let payload else { return false }
+        if let name = PlannerDrag.rowTagName(in: payload) {
+            moveRow(named: name, toPositionOf: list)
+            return true
+        }
+        guard let identifier = PlannerDrag.itemIdentifier(in: payload) else { return false }
+        assign(reminderID: identifier, to: list.tag, important: important, insertAt: insertAt)
+        return true
     }
 
     private var emptyState: some View {
@@ -1366,7 +1573,7 @@ private struct TagPlannerView: View {
             Image(systemName: "number")
                 .font(.system(size: 28, weight: .regular))
                 .foregroundStyle(.tertiary)
-            Text(String("Tag reminders with # to plan by tag"))
+            Text(String("Tag reminders with # to plan by horizon"))
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -1375,72 +1582,193 @@ private struct TagPlannerView: View {
         .padding(.horizontal, 30)
     }
 
-    private func sectionHeader(_ list: TagReminderList, collapsed: Bool) -> some View {
-        let color = Color.rmbColor(.tagHighlight)
-        return HStack(spacing: 6) {
-            Button {
-                toggleCollapse(list)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(color.opacity(0.85))
-                        .rotationEffect(.degrees(collapsed ? 0 : 90))
-                    Text("# \(list.tag.name)")
-                        .font(.headline)
-                        .foregroundColor(color)
-                    Text("\(list.reminders.count)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+    // MARK: Unsorted tray
 
-            Spacer()
-
-            // Reorder controls — revealed on hover, write the order into plannerTags.
-            HStack(spacing: 3) {
-                Button { moveTag(list, by: -1) } label: {
-                    Image(systemName: "chevron.up").font(.system(size: 11, weight: .semibold))
+    /// Reminders with no horizon yet. They can be checked off right here — sorting
+    /// something you're about to finish anyway is busywork. Dropping an item back
+    /// in clears its horizon tags, so sorting is reversible.
+    @ViewBuilder private var unsortedTray: some View {
+        if !untagged.isEmpty {
+            let shown = Array(untagged.prefix(unsortedLimit))
+            let hidden = untagged.count - shown.count
+            Divider()
+            HStack(spacing: 10) {
+                Text(String("Unsorted"))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(shown) { item in
+                            UnsortedChip(item: item)
+                        }
+                        // Never let the cap hide work silently.
+                        if hidden > 0 {
+                            Text("+\(hidden) more")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 4)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
-                .disabled(isFirst(list))
-                Button { moveTag(list, by: 1) } label: {
-                    Image(systemName: "chevron.down").font(.system(size: 11, weight: .semibold))
-                }
-                .buttonStyle(.plain)
-                .disabled(isLast(list))
             }
-            .foregroundStyle(.secondary)
-            .opacity(hoveredSectionID == list.id ? 1 : 0)
-            .help(String("Reorder this section"))
-        }
-        .onHover { hovering in
-            if hovering {
-                hoveredSectionID = list.id
-            } else if hoveredSectionID == list.id {
-                hoveredSectionID = nil
+            .padding(.horizontal, 16)
+            .frame(height: 42)
+            .background(dropTarget == unsortedKey ? Color.accentColor.opacity(0.14) : Color.clear)
+            .dropDestination(for: String.self) { payloads, _ in
+                guard let payload = payloads.first,
+                      let identifier = PlannerDrag.itemIdentifier(in: payload) else { return false }
+                assign(reminderID: identifier, to: nil, important: false, insertAt: nil)
+                return true
+            } isTargeted: { targeted in
+                if targeted {
+                    dropTarget = unsortedKey
+                } else if dropTarget == unsortedKey {
+                    dropTarget = nil
+                }
             }
         }
     }
 
-    private func isFirst(_ list: TagReminderList) -> Bool { displayedTagLists.first?.id == list.id }
-    private func isLast(_ list: TagReminderList) -> Bool { displayedTagLists.last?.id == list.id }
+    private var unsortedKey: String { "__unsorted__" }
 
-    /// Move a tag section up or down. Seeds `plannerTags` from the current display
-    /// order the first time (when nothing's been curated yet), then reorders it.
-    private func moveTag(_ list: TagReminderList, by offset: Int) {
+    // MARK: Ordering within a cell
+
+    /// Hand-placed items keep the order you gave them; everything else falls in
+    /// beneath by due date, soonest first, undated last. New arrivals therefore
+    /// land at the bottom of a cell you've already arranged instead of jumping
+    /// into the middle of it.
+    private func sortedItems(_ items: [ReminderItem]) -> [ReminderItem] {
+        let order = userPreferences.plannerItemOrder
+        guard !order.isEmpty else { return items.sorted(by: dueDatePrecedes) }
+
+        var rank: [String: Int] = [:]
+        for (index, identifier) in order.enumerated() where rank[identifier] == nil {
+            rank[identifier] = index
+        }
+        let placed = items
+            .filter { rank[$0.reminder.calendarItemIdentifier] != nil }
+            .sorted { (rank[$0.reminder.calendarItemIdentifier] ?? 0) < (rank[$1.reminder.calendarItemIdentifier] ?? 0) }
+        let rest = items
+            .filter { rank[$0.reminder.calendarItemIdentifier] == nil }
+            .sorted(by: dueDatePrecedes)
+        return placed + rest
+    }
+
+    private func dueDatePrecedes(_ lhs: ReminderItem, _ rhs: ReminderItem) -> Bool {
+        switch (lhs.reminder.dueDateComponents?.date, rhs.reminder.dueDateComponents?.date) {
+        case let (left?, right?): return left < right
+        case (nil, _?): return false
+        case (_?, nil): return true
+        case (nil, nil): return lhs.reminder.title.localizedCaseInsensitiveCompare(rhs.reminder.title) == .orderedAscending
+        }
+    }
+
+    /// Record a hand-placed position. The whole cell's order is written down at
+    /// once (seeded from what's on screen), so a single deliberate drop doesn't
+    /// leave its neighbours to be re-sorted out from under it.
+    private func recordPlacement(of identifier: String, list: TagReminderList, important: Bool, insertAt: Int?) {
+        var cellIDs = sortedItems(list.reminders.filter { isImportant($0.reminder) == important })
+            .map { $0.reminder.calendarItemIdentifier }
+            .filter { $0 != identifier }
+        let index = min(max(insertAt ?? cellIDs.count, 0), cellIDs.count)
+        cellIDs.insert(identifier, at: index)
+
+        var order = userPreferences.plannerItemOrder
+        order.removeAll { cellIDs.contains($0) }
+        order.append(contentsOf: cellIDs)
+        userPreferences.plannerItemOrder = order
+    }
+
+    // MARK: Drop → write both axes
+
+    /// Apply a cell's two axes to the dropped reminder: the row's horizon tag and
+    /// the column's importance.
+    ///
+    /// Horizon tags are mutually exclusive, so landing in one row removes the
+    /// others — but only the tags the user actually curated as rows. With no
+    /// curation every tag is a row, and stripping all of them would destroy
+    /// unrelated semantic tags (#errands, #work), so in that case we only add.
+    private func assign(reminderID: String, to tag: Tag?, important: Bool, insertAt: Int?) {
+        guard #available(macOS 12, *), let reminder = reminderLookup[reminderID] else { return }
+
+        // Captured before the write so ⌘Z can put both axes back exactly.
+        let previousTags = reminder.ekTags
+        let previousPriority = reminder.ekPriority
+        let previousOrder = userPreferences.plannerItemOrder
+
+        let exclusive = Set(userPreferences.plannerTags.map { $0.lowercased() })
+        var tags = reminder.ekTags.filter { !exclusive.contains($0.name.lowercased()) }
+        if let tag, !tags.contains(where: { $0.name.lowercased() == tag.name.lowercased() }) {
+            tags.append(tag)
+        }
+
+        // Only move priority when the importance CATEGORY changes, so dragging an
+        // already-important item between horizons keeps its exact level (!! stays !!).
+        if isImportant(reminder) != important {
+            reminder.ekPriority = important ? .high : .none
+        }
+
+        if let tag {
+            let target = tagLists.first { $0.tag.name.lowercased() == tag.name.lowercased() }
+            recordPlacement(of: reminderID, list: target ?? TagReminderList(for: tag, with: []),
+                            important: important, insertAt: insertAt)
+        }
+
+        RemindersService.shared.save(reminder: reminder, tags: tags)
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+
+        UndoCoordinator.shared.register {
+            reminder.ekPriority = previousPriority
+            UserPreferences.shared.plannerItemOrder = previousOrder
+            RemindersService.shared.save(reminder: reminder, tags: previousTags)
+            NotificationCenter.default.post(name: .remindersDataShouldUpdate, object: nil)
+        }
+
+        load()
+    }
+
+    /// Importance is read from the reminder's own priority, so it round-trips to
+    /// Apple's Reminders app: !!! / !! read as important, ! and none as normal.
+    private func isImportant(_ reminder: EKReminder) -> Bool {
+        switch reminder.ekPriority {
+        case .high, .medium: return true
+        default: return false
+        }
+    }
+
+    private var reminderLookup: [String: EKReminder] {
+        var map: [String: EKReminder] = [:]
+        for list in tagLists {
+            for item in list.reminders {
+                map[item.reminder.calendarItemIdentifier] = item.reminder
+            }
+        }
+        for item in untagged {
+            map[item.reminder.calendarItemIdentifier] = item.reminder
+        }
+        return map
+    }
+
+    // MARK: Row order
+
+    /// Drop a horizon onto another row to take its place; the rest slide to make
+    /// room. Seeds `plannerTags` from the current display order the first time
+    /// (when nothing's been curated yet), then reorders it.
+    private func moveRow(named name: String, toPositionOf list: TagReminderList) {
+        guard name.lowercased() != list.tag.name.lowercased() else { return }
         var order = userPreferences.plannerTags.isEmpty
             ? displayedTagLists.map(\.tag.name)
             : userPreferences.plannerTags
-        guard let index = order.firstIndex(where: { $0.lowercased() == list.tag.name.lowercased() }) else { return }
-        let target = index + offset
-        guard target >= 0, target < order.count else { return }
-        order.swapAt(index, target)
-        withAnimation(.easeInOut(duration: 0.2)) {
+        guard let from = order.firstIndex(where: { $0.lowercased() == name.lowercased() }),
+              let to = order.firstIndex(where: { $0.lowercased() == list.tag.name.lowercased() }) else {
+            return
+        }
+        let moved = order.remove(at: from)
+        order.insert(moved, at: to)
+        withAnimation(reorderSpring) {
             userPreferences.plannerTags = order
         }
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
     }
 
     // MARK: Momentum strip
@@ -1496,12 +1824,43 @@ private struct TagPlannerView: View {
             let tags = await RemindersService.shared.getAllTags()
             let lists = await RemindersService.shared.getReminders(byTags: tags, calendarIdentifiers: nil)
             let done = await RemindersService.shared.getCompletedReminders(since: since)
+            // The tray excludes whatever is a row, so an item never appears both in
+            // the grid and as unsorted.
+            let rowTags = rowTags(from: tags)
+            let unsorted = await RemindersService.shared.getReminders(withoutTags: rowTags)
             await MainActor.run {
                 allTags = tags
                 tagLists = lists
+                untagged = unsorted
+                pruneItemOrder(keeping: lists, and: unsorted)
                 computeMomentum(done, startOfToday: startOfToday)
                 loaded = true
             }
+        }
+    }
+
+    /// Drop hand-placed positions for reminders that no longer exist (completed,
+    /// deleted), so the stored order doesn't grow without bound.
+    private func pruneItemOrder(keeping lists: [TagReminderList], and unsorted: [ReminderItem]) {
+        guard !userPreferences.plannerItemOrder.isEmpty else { return }
+        var alive = Set(unsorted.map { $0.reminder.calendarItemIdentifier })
+        for list in lists {
+            for item in list.reminders {
+                alive.insert(item.reminder.calendarItemIdentifier)
+            }
+        }
+        let pruned = userPreferences.plannerItemOrder.filter { alive.contains($0) }
+        if pruned.count != userPreferences.plannerItemOrder.count {
+            userPreferences.plannerItemOrder = pruned
+        }
+    }
+
+    /// The tags acting as rows right now — the curated order if there is one, else
+    /// every tag.
+    private func rowTags(from all: [Tag]) -> [Tag] {
+        guard !userPreferences.plannerTags.isEmpty else { return all }
+        return userPreferences.plannerTags.compactMap { name in
+            all.first { $0.name.lowercased() == name.lowercased() }
         }
     }
 
@@ -1530,6 +1889,79 @@ private struct TagPlannerView: View {
             day = previous
         }
         streak = count
+    }
+}
+
+/// One compact reminder in a board cell. Deliberately slimmer than
+/// `ReminderItemView` — at ~250pt of cell width a full row (notes, tag chips,
+/// links) would fit barely two items per cell. Drag replaces swipe-to-postpone
+/// here: both are horizontal drags, and on the board re-tagging IS the postpone.
+private struct PlannerRow: View {
+    let item: ReminderItem
+    @State private var isPendingCompletion = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            ReminderCompleteButton(reminderItem: item, isPendingCompletion: $isPendingCompletion)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.reminder.title)
+                    .font(.system(size: 12))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let dateDescription = item.reminder.relativeDateDescription {
+                    Text(dateDescription)
+                        .font(.system(size: 10))
+                        .foregroundColor(item.reminder.isExpired ? .red : .secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .opacity(isPendingCompletion ? 0.4 : 1)
+        .animation(.easeInOut(duration: 0.15), value: isPendingCompletion)
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .draggable(PlannerDrag.item(item.reminder.calendarItemIdentifier)) {
+            Text(item.reminder.title)
+                .font(.system(size: 12))
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
+/// An untagged reminder in the tray. Carries a real complete button, so something
+/// you're about to finish can be ticked off without sorting it first.
+private struct UnsortedChip: View {
+    let item: ReminderItem
+    @State private var isPendingCompletion = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ReminderCompleteButton(reminderItem: item, isPendingCompletion: $isPendingCompletion)
+            Text(item.reminder.title)
+                .font(.system(size: 11))
+                .lineLimit(1)
+        }
+        .padding(.leading, 7)
+        .padding(.trailing, 9)
+        .padding(.vertical, 4)
+        .opacity(isPendingCompletion ? 0.4 : 1)
+        .animation(.easeInOut(duration: 0.15), value: isPendingCompletion)
+        .background(Color.primary.opacity(0.06), in: Capsule())
+        .contentShape(Capsule())
+        .draggable(PlannerDrag.item(item.reminder.calendarItemIdentifier)) {
+            Text(item.reminder.title)
+                .font(.system(size: 12))
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+        }
     }
 }
 

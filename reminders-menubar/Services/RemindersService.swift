@@ -312,6 +312,22 @@ class RemindersService {
         return tagReminderLists
     }
 
+    /// Incomplete reminders carrying none of `tags` — the Planner's unsorted tray,
+    /// i.e. everything that hasn't been given a horizon yet.
+    @available(macOS 12, *)
+    func getReminders(withoutTags tags: [Tag]) async -> [ReminderItem] {
+        let predicate = eventStore.predicateForIncompleteReminders(
+            withDueDateStarting: nil,
+            ending: nil,
+            calendars: nil
+        )
+        let excluded = Set(tags.map { $0.name.lowercased() })
+        let matching = await fetchReminders(matching: predicate).filter { reminder in
+            reminder.ekTags.allSatisfy { !excluded.contains($0.name.lowercased()) }
+        }
+        return createReminderItems(for: matching).sortedUpcomingReminders
+    }
+
     func remove(reminder: EKReminder) {
         do {
             try eventStore.remove(reminder, commit: true)
