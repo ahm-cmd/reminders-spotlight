@@ -786,6 +786,12 @@ struct SpotlightView: View {
             agendaMode = true
         }
         if !expanded { expand() }
+        // The bar's AppKit field stays MOUNTED behind the board (both surfaces are
+        // kept alive so toggling never remounts a List). Opacity and hit-testing
+        // don't touch first responder, so without this it keeps swallowing every
+        // keystroke typed on the board — invisibly filling the bar, and tripping
+        // the typing→collapse handler.
+        AppDelegate.shared.mainWindow?.makeFirstResponder(nil)
     }
 
     /// ← returns to the Reminders list. It's a pure in-place push (both lists stay
@@ -794,6 +800,8 @@ struct SpotlightView: View {
     private func closeAgenda() {
         guard agendaMode else { return }
         withAnimation(dashboardPush) { agendaMode = false }
+        // Hand the keyboard back to the bar, which gave it up when the board opened.
+        focusTrigger = UUID()
     }
 
     // MARK: - Notes (compose detail) — mutually exclusive with the browse list.
@@ -1012,25 +1020,12 @@ struct SpotlightView: View {
     }
 
     private func finalTitle() -> String {
-        var title = rmbReminder.title
-        // Priority (!/!!/!!!) applies only to reminders, so only strip it there.
-        // In event mode a freestanding "!" is just part of the title — keep it.
-        if !eventMode, let priorityRange = Range(rmbReminder.textPriorityResult.highlightedText.range, in: title) {
-            title.replaceSubrange(priorityRange, with: "")
-        }
-        if userPreferences.removeParsedDateFromTitle {
-            for dateString in rmbReminder.textDateResult.strings {
-                title = title.replacingOccurrences(of: dateString, with: "")
-            }
-        }
-        title = title.replacingOccurrences(of: rmbReminder.textCalendarResult.string, with: "")
-        // Tags (#foo) apply only to reminders, so only strip them there. In event
-        // mode a "#…" token is just part of the title — keep it.
-        if !eventMode {
-            for tagResult in rmbReminder.textTagResults.sorted(by: { $0.string.count > $1.string.count }) {
-                title = title.replacingOccurrences(of: tagResult.string, with: "")
-            }
-        }
+        // Priority (!/!!/!!!) and tags (#foo) apply only to reminders, so in event
+        // mode a freestanding "!" or "#…" stays part of the title.
+        var title = rmbReminder.titleStrippingParsedTokens(
+            removingDate: userPreferences.removeParsedDateFromTitle,
+            removingReminderTokens: !eventMode
+        )
         // In event mode, also strip the parsed "@" calendar-shortcut token and any
         // "every …" recurrence phrase (neither is a reminder-list token, so the
         // line above won't have removed them).
@@ -1285,6 +1280,10 @@ private struct TagPlannerView: View {
     @State private var dropTarget: String?      // cell currently under an item drag
     @State private var insertTarget: String?    // row the item would be inserted above
     @State private var rowDropTarget: String?   // row a dragged horizon would land on
+    @State private var hoveredCell: String?     // cell showing its "+" affordance
+    @State private var composingCell: String?   // cell with an open entry field
+    @State private var composeText = ""
+    @FocusState private var composeFocused: Bool
 
     /// The tray is a staging area, not a second reminders list — the untagged pool
     /// can run to hundreds, so only the most pressing few are offered at once.
@@ -1325,6 +1324,7 @@ private struct TagPlannerView: View {
         .environment(\.appHasPopoverOpen, $appHasPopoverOpen)
         .environmentObject(CopyShortcutCoordinator())
         .onAppear { cache.refreshIfStale() }
+        .onDisappear { endCompose() }
         .onReceive(NotificationCenter.default.publisher(for: .remindersDataShouldUpdate)) { _ in load() }
         // Also follow the store itself: completing a reminder (and any edit made in
         // Apple's Reminders app while the panel is open) fires EKEventStoreChanged
@@ -1544,12 +1544,40 @@ private struct TagPlannerView: View {
                         }
                 }
             }
+
+            if composingCell == key {
+                composeField(list, important: important)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(dropTarget == key ? Color.accentColor.opacity(0.14) : Color.clear)
         .contentShape(Rectangle())
+        // An overlay rather than a row, so reserving space for it never reflows a
+        // cell that isn't being hovered.
+        .overlay(alignment: .bottomTrailing) {
+            if composingCell != key && !collapsed {
+                Button { beginCompose(key) } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(4)
+                        .background(Color.primary.opacity(0.08), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(4)
+                .opacity(hoveredCell == key ? 1 : 0)
+                .help(String("Add to this horizon"))
+            }
+        }
+        .onHover { hovering in
+            if hovering {
+                hoveredCell = key
+            } else if hoveredCell == key {
+                hoveredCell = nil
+            }
+        }
         // Dropping on open space in the cell (rather than on a row) appends.
         .dropDestination(for: String.self) { payloads, _ in
             handleDrop(payloads.first, list: list, important: important, insertAt: nil)
@@ -1560,6 +1588,79 @@ private struct TagPlannerView: View {
                 dropTarget = nil
             }
         }
+    }
+
+    // MARK: Add straight into a cell
+
+    /// Entry field inside a cell. What you type is parsed exactly as the bar parses
+    /// it ("call mom tomorrow at 4" gets a due date), and the cell supplies the two
+    /// axes — its horizon tag and its importance.
+    private func composeField(_ list: TagReminderList, important: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "plus.circle")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+            TextField(String("New reminder"), text: $composeText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .focused($composeFocused)
+                .onSubmit { createInCell(list, important: important) }
+        }
+        .padding(.vertical, 2)
+        .onExitCommand(perform: endCompose)
+    }
+
+    private func beginCompose(_ key: String) {
+        composeText = ""
+        composingCell = key
+        // Let the field own Return / arrows / Esc instead of the panel's global key
+        // monitor, which would otherwise back out of the board mid-sentence.
+        InlineTitleEditState.shared.isEditing = true
+        DispatchQueue.main.async { composeFocused = true }
+    }
+
+    private func endCompose() {
+        composingCell = nil
+        composeText = ""
+        composeFocused = false
+        InlineTitleEditState.shared.isEditing = false
+    }
+
+    /// Create the typed reminder in this cell. The field stays open and clears, so
+    /// a horizon can be filled in one go.
+    private func createInCell(_ list: TagReminderList, important: Bool) {
+        let typed = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty, let calendar = RemindersService.shared.getDefaultCalendar() else { return }
+
+        var draft = RmbReminder()
+        draft.title = typed   // assigning runs the date / list / priority / tag parsers
+        let title = draft
+            .titleStrippingParsedTokens(removingDate: userPreferences.removeParsedDateFromTitle)
+            .replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else { return }
+
+        // The row decides the horizon; the column decides importance — unless the
+        // text already said so, in which case the typed level stands (matching how
+        // a drop leaves an existing !! alone).
+        draft.addTag(named: list.tag.name)
+        if isImportant(priority: draft.priority) != important {
+            draft.priority = important ? .high : EKReminderPriority.none
+        }
+
+        draft.prepareToSave()
+        draft.title = title
+        draft.calendar = calendar
+
+        let created = RemindersService.shared.createNew(with: draft, in: calendar)
+        UndoCoordinator.shared.register {
+            RemindersService.shared.remove(reminder: created)
+            NotificationCenter.default.post(name: .remindersDataShouldUpdate, object: nil)
+        }
+        SoundService.shared.playSuccessFeedback()
+
+        composeText = ""
+        cache.refresh()
     }
 
     private func cellKey(_ list: TagReminderList, important: Bool) -> String {
@@ -1745,7 +1846,11 @@ private struct TagPlannerView: View {
     /// Importance is read from the reminder's own priority, so it round-trips to
     /// Apple's Reminders app: !!! / !! read as important, ! and none as normal.
     private func isImportant(_ reminder: EKReminder) -> Bool {
-        switch reminder.ekPriority {
+        isImportant(priority: reminder.ekPriority)
+    }
+
+    private func isImportant(priority: EKReminderPriority) -> Bool {
+        switch priority {
         case .high, .medium: return true
         default: return false
         }

@@ -265,3 +265,33 @@ struct RmbReminder {
         }
     }
 }
+
+extension RmbReminder {
+    /// The title with the tokens the parsers claimed stripped out — the text that
+    /// should actually be saved. Callers finish the job (collapsing whitespace,
+    /// trimming, and removing anything they parsed themselves, like a recurrence
+    /// phrase), since only they know what else was claimed.
+    ///
+    /// `removingDate` follows the user's "remove parsed date from title" setting.
+    /// Priority and tags belong to reminders only, so an event entry passes false
+    /// for `removingReminderTokens` and keeps a freestanding "!" or "#" in the title.
+    func titleStrippingParsedTokens(removingDate: Bool, removingReminderTokens: Bool = true) -> String {
+        var title = self.title
+        if removingReminderTokens,
+           let priorityRange = Range(textPriorityResult.highlightedText.range, in: title) {
+            title.replaceSubrange(priorityRange, with: "")
+        }
+        if removingDate {
+            for dateString in textDateResult.strings {
+                title = title.replacingOccurrences(of: dateString, with: "")
+            }
+        }
+        title = title.replacingOccurrences(of: textCalendarResult.string, with: "")
+        if removingReminderTokens {
+            for tagResult in textTagResults.sorted(by: { $0.string.count > $1.string.count }) {
+                title = title.replacingOccurrences(of: tagResult.string, with: "")
+            }
+        }
+        return title
+    }
+}
