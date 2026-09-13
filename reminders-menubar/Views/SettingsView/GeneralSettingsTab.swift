@@ -47,25 +47,6 @@ struct GeneralSettingsTab: View {
 
             SettingsDivider()
 
-            SettingsSection(rmbLocalized(.preferredLanguageSettingsLabel)) {
-                Picker(String(""), selection: Binding(
-                    get: { userPreferences.preferredLanguage ?? "" },
-                    set: { newValue in
-                        userPreferences.preferredLanguage = newValue.isEmpty ? nil : newValue
-                    }
-                )) {
-                    Text(rmbLocalized(.preferredLanguageSystemSettingsOption))
-                        .tag("")
-                    Divider()
-                    ForEach(rmbAvailableLocales(), id: \.identifier) { locale in
-                        Text(locale.name)
-                            .tag(locale.identifier)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-            }
-
             SettingsSection(rmbLocalized(.timeFormatSettingsLabel)) {
                 Picker(String(""), selection: $userPreferences.timeFormatIs24Hour) {
                     Text(rmbLocalized(.timeFormat12HourOption)).tag(false)

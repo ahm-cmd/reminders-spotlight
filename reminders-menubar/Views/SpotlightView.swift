@@ -17,6 +17,7 @@ struct SpotlightView: View {
     @State private var growStartedAt: Date?
     @State private var didCreate = false   // entry morphs into the checkmark
     @State private var createdColor: Color = .green   // checkmark tint = destination list/calendar
+    @State private var saveFailed = false  // the write threw — X instead of checkmark
     @State private var dismissing = false  // whole panel bubbles off after
     @State private var listShown = true    // list card visible (opacity) vs faded out
     @State private var collapsing = false  // a typing-collapse is in flight
@@ -289,10 +290,12 @@ struct SpotlightView: View {
         .background(cardSurface)
         .overlay {
             if didCreate {
-                Image(systemName: "checkmark.circle.fill")
+                // An X, not a checkmark, when the write failed — confirming a save
+                // that didn't happen is worse than no feedback at all.
+                Image(systemName: saveFailed ? "xmark.circle.fill" : "checkmark.circle.fill")
                     .font(.system(size: 36, weight: .semibold))
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, createdColor)
+                    .foregroundStyle(.white, saveFailed ? Color(nsColor: .systemRed) : createdColor)
                     // Blooms in from a point; then on dismiss keeps growing as the
                     // whole panel fades — the "bubble off".
                     .scaleEffect(dismissing ? 1.3 : 1.0)
@@ -922,27 +925,56 @@ struct SpotlightView: View {
         // before the save path can reset the entry.
         createdColor = Color(nsColor: destinationCaretColor)
 
+        // Keep the text as typed, before the save path strips parsed tokens, so a
+        // failed write can hand it back rather than losing it.
+        let typedTitle = rmbReminder.title
+        let typedNotes = rmbReminder.notes
+
         // Begin the morph FIRST: rewriting rmbReminder.title in the save path would
         // otherwise trip the typing→collapse handler, and didCreate guards it.
         withAnimation(.spring(response: 0.36, dampingFraction: 0.74)) { didCreate = true }
 
-        saveCurrentEntry()
+        if !saveCurrentEntry() {
+            markSaveFailed(typedTitle: typedTitle, typedNotes: typedNotes)
+        }
 
-        // Linger on the checkmark a beat, then the panel bubbles off.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
-            withAnimation(.easeInOut(duration: 0.24)) { dismissing = true }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.74) {
-            AppDelegate.shared.closeMainWindow()
-        }
+        scheduleDismissAfterFeedback()
     }
 
     /// ⌘↩ — save the current entry and keep the bar open, cleared, for the next
     /// one (multi-add).
     private func createAndContinue() {
         guard canSaveCurrentEntry else { return }
-        saveCurrentEntry()
+        let typedTitle = rmbReminder.title
+        let typedNotes = rmbReminder.notes
+        guard saveCurrentEntry() else {
+            // A store refusing writes won't accept the next entry either, so stop
+            // multi-adding and end on the same X + draft as a single save.
+            createdColor = Color(nsColor: destinationCaretColor)
+            markSaveFailed(typedTitle: typedTitle, typedNotes: typedNotes)
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.74)) { didCreate = true }
+            scheduleDismissAfterFeedback()
+            return
+        }
         resetForNextEntry()
+    }
+
+    /// The write didn't land. Flip the glyph to an X and keep the entry as a draft
+    /// so re-opening brings it straight back to retry — `onDisappear` only drafts
+    /// when `!didCreate`, which is already true by this point.
+    private func markSaveFailed(typedTitle: String, typedNotes: String?) {
+        saveFailed = true
+        DraftCoordinator.shared.save(title: typedTitle, notes: typedNotes, isEvent: eventMode)
+    }
+
+    /// Linger on the checkmark (or X) a beat, then the panel bubbles off.
+    private func scheduleDismissAfterFeedback() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) {
+            withAnimation(.easeInOut(duration: 0.24)) { dismissing = true }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.74) {
+            AppDelegate.shared.closeMainWindow()
+        }
     }
 
     private var canSaveCurrentEntry: Bool {
@@ -953,11 +985,13 @@ struct SpotlightView: View {
         return parsedOrChosenCalendar != nil
     }
 
-    /// Writes the current entry to Reminders or Calendar (no animation / dismiss).
-    private func saveCurrentEntry() {
+    /// Writes the current entry to Reminders or Calendar (no animation / dismiss),
+    /// reporting whether it actually landed.
+    @discardableResult
+    private func saveCurrentEntry() -> Bool {
         let title = finalTitle()
         if eventMode {
-            guard let calendar = effectiveEventCalendar else { return }
+            guard let calendar = effectiveEventCalendar else { return false }
             // Best-effort duration from a parsed range ("12–1pm"); recurrence from
             // "every …". Priority/tags are parsed too but don't apply to events.
             let duration = DateParser.shared.getDate(from: rmbReminder.title)?.duration ?? 0
@@ -970,13 +1004,12 @@ struct SpotlightView: View {
                 notes: rmbReminder.notes,
                 in: calendar
             )
-            if let created {
-                UndoCoordinator.shared.register {
-                    RemindersService.shared.remove(event: created)
-                }
+            guard let created else { return false }
+            UndoCoordinator.shared.register {
+                RemindersService.shared.remove(event: created)
             }
         } else {
-            guard let calendar = parsedOrChosenCalendar else { return }
+            guard let calendar = parsedOrChosenCalendar else { return false }
             // A repeating reminder needs a due date to anchor the recurrence.
             if recurrenceMatch != nil && !rmbReminder.hasDueDate {
                 rmbReminder.hasDueDate = true
@@ -984,7 +1017,9 @@ struct SpotlightView: View {
             rmbReminder.prepareToSave()
             rmbReminder.title = title
             rmbReminder.calendar = calendar
-            let created = RemindersService.shared.createNew(with: rmbReminder, in: calendar, recurrence: recurrenceMatch?.rule)
+            guard let created = RemindersService.shared.createNew(
+                with: rmbReminder, in: calendar, recurrence: recurrenceMatch?.rule
+            ) else { return false }
             remindersData.calendarForSaving = calendar
             UndoCoordinator.shared.register {
                 RemindersService.shared.remove(reminder: created)
@@ -992,6 +1027,7 @@ struct SpotlightView: View {
             }
         }
         SoundService.shared.playSuccessFeedback()
+        return true
     }
 
     private func resetForNextEntry() {
@@ -1652,7 +1688,8 @@ private struct TagPlannerView: View {
         draft.title = title
         draft.calendar = calendar
 
-        let created = RemindersService.shared.createNew(with: draft, in: calendar)
+        // Leave the typed text in place if the write failed, so it can be retried.
+        guard let created = RemindersService.shared.createNew(with: draft, in: calendar) else { return }
         UndoCoordinator.shared.register {
             RemindersService.shared.remove(reminder: created)
             NotificationCenter.default.post(name: .remindersDataShouldUpdate, object: nil)

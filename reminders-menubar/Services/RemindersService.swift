@@ -227,27 +227,34 @@ class RemindersService {
         return await fetchReminders(matching: predicate).count
     }
     
-    func save(reminder: EKReminder, tags: [Tag]? = nil) {
+    /// Returns whether the write actually landed. Callers that show the user a
+    /// confirmation must check it — a swallowed failure means the entry is gone
+    /// while the UI says it was saved.
+    @discardableResult
+    func save(reminder: EKReminder, tags: [Tag]? = nil) -> Bool {
         do {
             try eventStore.save(reminder, commit: true)
             // NOTE: Tags are persisted via REMSaveRequest directly.
             if #available(macOS 12, *), let tags {
                 reminder.updateTags(tags)
             }
+            return true
         } catch {
             print("Error saving reminder:", error.localizedDescription)
+            return false
         }
     }
     
+    /// nil when the write failed, so callers don't confirm a save that didn't happen.
     @discardableResult
-    func createNew(with rmbReminder: RmbReminder, in calendar: EKCalendar, recurrence: EKRecurrenceRule? = nil) -> EKReminder {
+    func createNew(with rmbReminder: RmbReminder, in calendar: EKCalendar, recurrence: EKRecurrenceRule? = nil) -> EKReminder? {
         let newReminder = EKReminder(eventStore: eventStore)
         newReminder.update(with: rmbReminder)
         newReminder.calendar = calendar
         if let recurrence {
             newReminder.recurrenceRules = [recurrence]
         }
-        save(reminder: newReminder, tags: rmbReminder.tags)
+        guard save(reminder: newReminder, tags: rmbReminder.tags) else { return nil }
         return newReminder
     }
     
